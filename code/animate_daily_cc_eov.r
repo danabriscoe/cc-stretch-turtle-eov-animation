@@ -84,8 +84,8 @@ daily_avg_data <- raw_data %>%
 ## ----load-eov-ncs-------------------------------------------------------------------------------------------------------
 params <-list()
 params$nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/deploy_reports"
-# params$eov = 'sst'
-params$eov = 'chla'
+params$eov = 'sst'
+# params$eov = 'chla'
 
 ncs <- list.files(params$nc_path, pattern = params$eov, full.names=T)
 
@@ -96,7 +96,8 @@ if(params$eov == 'sst'){
         substr(., start=1, stop=10)
     
     limits = c(5,35)
-    contour_val_max <- contour_val_min <- 17
+    contour_val_min <- 17
+    contour_val_max <- 17
     smooth_rainbow <- khroma::colour("smooth rainbow")
     
     cpal <- smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9))
@@ -352,13 +353,27 @@ gg_smooth_trial <-
         data = eov_df,
         aes(x = x, y = y, fill = val, group = date)) +
 
+    ## add smoother for tzcf
+    {
+        if (params$eov=='sst') {
+            geom_smooth(data=eov_df %>% mutate(date = as.Date(date)) %>% filter(val >= contour_val_min & val <= contour_val_max),aes(x=x,y=y),
+                        # method="loess",
+                        span=0.1,
+                        se=F,
+                        color="snow", alpha = 0.40, size=1.25)
+        } 
+    } +
+    
+    # add coast 
+    geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black") +
+    
     # geom_smooth(data=eov_df %>% mutate(date = as.Date(date)) %>% filter(val >= contour_val_min & val <= contour_val_max),aes(x=x,y=y),
     #             method="loess",
     #             span=0.2,
     #             se=F,
     #             color="snow", alpha = 0.40, size=1.25) +
-    # # scale_fill_viridis(breaks=seq(0,2,0.2), direction = -1,
-    # #                    limits = c(0,2),na.value = 'snow')
+    # # # scale_fill_viridis(breaks=seq(0,2,0.2), direction = -1,
+    # # #                    limits = c(0,2),na.value = 'snow')
 
     {
         if ( params$eov=='chla'){
@@ -368,15 +383,9 @@ gg_smooth_trial <-
                               na.value = 'snow',
                               name = "Chl (mg/m^3)")
         } else if ( params$eov=='sst') {
-            geom_smooth(data=eov_df %>% mutate(date = as.Date(date)) %>% filter(val >= contour_val_min & val <= contour_val_max),aes(x=x,y=y),
-                        # method="loess",
-                        span=0.1,
-                        se=F,
-                        color="snow", alpha = 0.40, size=1.25) +
-                
             scale_fill_gradientn(colours = 
-                                     # cpal[12:length(cpal)],
-                                     cpal[2:length(cpal)],
+                                     cpal[12:length(cpal)],
+                                     # cpal[2:length(cpal)],
                                  breaks=seq(10,25,2),
                                  limits = c(9.25,25),
                                  na.value = 'snow',
@@ -384,21 +393,6 @@ gg_smooth_trial <-
         }
     } +
     
-    
-    # scale_fill_stepsn(colours = c( "honeydew3", cpal[1:length(cpal)]),
-    #                   breaks = seq(0,2,0.1),
-    #                   na.value = 'snow',
-    #                   name = "Chl (mg/m^3")
-    # 
-    # scale_fill_gradientn(colours = cpal[2:length(cpal)],
-    #                      breaks=seq(10,25,2),
-    #                      limits = c(9,25),na.value = 'snow') + 
-    # scale_colour_gradientn(colours = cpal[2:length(cpal)])
-    # 
-    # scale_colour_gradientn(colours = cpal[1:length(cpal)]) +
-    # scale_colour_gradientn(colours = cpal[2:length(cpal)]) +
-    
-    geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black") +
     
     # turtle daily movements
     geom_point(data=turtles_df %>% 
@@ -420,9 +414,11 @@ gg_smooth_trial <-
     guides(fill = guide_colourbar(#title = "SST (°C)", 
                                   barheight = params$barheight,
                                   ticks = TRUE)) + 
-    # facet_wrap(~date)
+    # # facet_wrap(~date)
     NULL
 
+
+    
 #' 
 ## ----trial-animate-plot-------------------------------------------------------------------------------------------------
 ## Animate Tracks by Date ----- ----------------
@@ -468,5 +464,5 @@ anim_trial = gg_smooth_trial + transition_time(date) +    # fyi, this requires i
 gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2, 
         # width = 1460, height = 720, res = 104,
         width = 1640, height = 900, res = 104,
-                   renderer = av_renderer(str_c('~/Downloads/animation_trial_', params$eov,'.mp4')))
+                   renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_v1.mp4')))
 
