@@ -266,30 +266,98 @@ get_npac_map <- function(xy, lon_type = '360', add_deploy_lons=TRUE, cpal, col_b
 }
 
 
-# # plot timeseries
-# plot_timeseries <- function(data, #unit='day',
-#                             cpal, ylimits, ybreaks, sst_thresh){
-#     
-#     g <- ggplot(data = data, aes(date, value, group = ID, text = str_c("Lon: ", make180(lon), ifelse(make180(lon) > 0, "°E \nSST", "°W \nSST: "), round(value,1),"°C"))) +
-#         geom_point(aes(x=date, y=value, color = factor(make180(lon))), size = 3) +
-#         geom_line(aes(group=ID, color = factor(make180(lon))), linewidth = 1) +
-#         
-#         scale_y_continuous(limits=ylimits, breaks=ybreaks) +
-#         scale_x_date(
-#             # date_breaks = "1 week", date_minor_breaks = "1 week",             # if you want Monday (first of next week)
-#             breaks = seq(data$date[1], data$date[length(data$date)],7),         # else if you want Sunday of current weekly avg
-#             date_labels = "%d %b",
-#             limits = c(data$date[1], data$date[length(data$date)])) +
-#         
-#         theme_minimal() +
-#         theme(legend.position='bottom',
-#               axis.text.x=element_text(angle = 35, hjust = 0.5, 
-#                                        size=8, vjust=0.5),
-#               plot.caption = element_text(hjust=0)) +
-#         # ggthemes::scale_color_tableau()
-#         scale_colour_manual(values = cpal)
-#     
-#     return(g)
-#     
-# }
-# 
+
+# get static plot (for gganimate) ----
+get_static_plot <- function(eov, eov_df, turtles_df, e, release_loc, cpal = cpal, cbar_breaks, cbar_limits){
+   
+    mapdata <- map_data('world', wrap=c(-25,335), ylim=c(-55,75)) %>%
+        filter(long >= 120 & long <= 270 & lat >= 15 & lat <=80) 
+    
+    p_barheight = 28.5 #38
+    p_plot_text_size = 14
+   
+    if(eov == 'sst'){
+        tzcf_contour = 17
+        tzcf_color = 'white'
+    } else if(eov == 'chla'){
+        tzcf_contour = 0.2
+        tzcf_color = 'gray10'
+    } else if(eov == 'ssta'){
+        tzcf_contour = NULL
+    }
+     
+    gg <- 
+        ggplot() +
+        geom_tile(
+            
+            data = eov_df,
+            aes(x = x, y = y, fill = val, group = date)) +
+        
+        
+        {
+            if (!is.null(tzcf_contour)) {
+                # add tzcf contour
+                geom_contour(data=eov_df, aes(x=x, y=y, z = val), colour = tzcf_color, linewidth = 1.25,
+                             breaks = c(tzcf_contour)) 
+            }
+        } +
+        
+        # # add tzcf contour
+        # geom_contour(data=eov_df, aes(x=x, y=y, z = val), colour = "white", linewidth = 1.25,
+        #              breaks = c(tzcf_contour)) +
+        
+        # add coast 
+        geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black") +
+        
+        
+        {
+            if (eov =='chla'){
+                # scale_fill_stepsn(colours = c( "gray99", cpal[2:length(cpal)]),
+                scale_fill_gradientn(colours = c( "gray99", cpal[6:length(cpal)]),
+                                  breaks = cbar_breaks,
+                                  limits = cbar_limits,
+                                  na.value = 'snow',
+                                  name = "Chl (mg/m^3)")
+            } else if (eov =='sst') {
+                scale_fill_gradientn(colours = 
+                                         # cpal[12:length(cpal)],
+                                         # breaks=seq(10,25,2),
+                                         # limits = c(9.25,25),
+                                         cpal[9:length(cpal)],
+                                     
+                                     breaks=cbar_breaks, #seq(6,32,2),
+                                     limits = c(min(cbar_limits),max(cbar_limits)),
+                                     na.value = 'snow',
+                                     name = "SST (°C)")
+            }
+        } +
+        
+        
+        # turtle daily movements
+        geom_point(data=turtles_df %>% 
+                       mutate(lon = make360(lon)),
+                   aes(x=lon,y=lat), color = "azure2",
+                   # fill = "#2a9d8f", shape = 21,
+                   fill = "#3c096c", shape = 21,
+                   stroke = 1, alpha = 0.90, size=3.25) +
+        
+        # release location
+        geom_point(data=release_loc, aes(x=lon, y=lat), fill = "lightgray",
+                   color = "black", shape = 4, size = 5.5) +
+        
+        labs(x = "\n \n Longitude \n", y = "\n Latitude \n \n ") +
+        # theme(legend.position = "none") +
+        
+        theme_minimal() + theme(text=element_text(size=p_plot_text_size)) +
+        # # coord_sf(xlim = c(make360(-160), make360(-140)), ylim = c(35, 45), expand = FALSE, crs = st_crs(4326)) +
+        coord_sf(xlim = c(make360(e[1]+1), make360(e[2])), ylim = c(e[3], e[4]), expand = FALSE, crs = st_crs(4326)) +
+        guides(fill = guide_colourbar(
+            barheight = p_barheight,
+            ticks = TRUE)
+            ) + 
+        # facet_wrap(~date) +
+        NULL
+    
+    return(gg)
+}
+

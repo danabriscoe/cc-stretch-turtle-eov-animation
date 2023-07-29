@@ -24,7 +24,10 @@ library(rnaturalearth)
 library(gifski)
 
 
-#' 
+## ---- source functions-----------------------------------------------------------------------------------------------------
+source('code/00_automate_EOV_helper_functions.R')
+
+
 ## ----temp-funcs-cell----------------------------------------------------------------------------------------------------
 ## Funtions ----
 make180 <- function(lon){
@@ -87,9 +90,9 @@ daily_avg_data <- raw_data %>%
 params <-list()
 
 # Set param to run
-params$eov = 'sst'
+# params$eov = 'sst'
 # params$eov = 'ssta'
-# params$eov = 'chla'
+params$eov = 'chla'
 
 if(params$eov == 'sst'){
     params$nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/deploy_reports"
@@ -113,8 +116,10 @@ if(params$eov == 'sst'){
         substr(., start=1, stop=10)
     
     limits = c(5,35)
-    contour_val_min <- 17
-    contour_val_max <- 17
+    cbar_breaks = seq(6, 34, 2)
+    cbar_limits = c(5, 34)
+    tzcf_contour = 17
+    
     smooth_rainbow <- khroma::colour("smooth rainbow")
     
     cpal <- c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9)), "#9e2a2b", "firebrick4", "#540b0e")
@@ -126,22 +131,27 @@ if(params$eov == 'sst'){
         purrr::map_chr(~ pluck(., 5)) %>%
         substr(., start=1, stop=10)
     
-    limits = c(5,35)
-    contour_val_min <- NA
-    contour_val_max <- NA
+    # limits = c(5,35)
+    
+    tzcf_contour <- NA
     
     brewer.pal(n = 8, name = "RdBu")
     
 } else if(params$eov == 'chla'){
-    fdates <- ncs %>% 
-        str_split(., "_") %>%
-        purrr::map_chr(~ pluck(., 3)) %>%
-        substr(., start=1, stop=10)
+    ncs <- list.files(params$nc_path, pattern = "NRTchla", full.names=T)
+    print(str_c('most recent ncdf - ', ncs[length(ncs)]))
     
-    limits = c(0,30)
-    contour_val_min = 0.2 
-    contour_val_max  = 0.21
-    cpal <- oce::oceColorsChlorophyll(10)
+    fdates <- ncs %>% 
+        str_split(., "/") %>%
+        purrr::map_chr(~ pluck(., 8)) %>%
+        substr(., start=29, stop=38)
+    
+    cbar_breaks <- c(0.2, 2, 10, 20)
+    cbar_limits <- limits <- c(0,20)
+    
+    tzcf_contour = 0.2
+    
+    cpal <- oce::oceColorsChlorophyll(20)
     
     # cpal <- smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9))
     # cpal <- colorRampPalette(chl_colors)(25)
@@ -187,10 +197,9 @@ yrange = c(25, 50)
 
 e <- extent(xrange[1], xrange[2], yrange[1], yrange[2])
 
-# e_subset <- extent(make360(-160), make360(-140), 35, 50)
-e_subset <- extent(make360(e[1]), make360(e[2]), e[3], e[4])
-# e_subset_180 <- extent(-160, -140, 35, 50)
-e_subset_180 <- extent(make180(e[1]+1), make180(e[2]), make180(e[3]), make180(e[4]))
+
+e_subset <- extent(make360(e[1]), make360(e[2]), e[3], e[4])                            # make 360 (just in case)
+e_subset_180 <- extent(make180(e[1]+1), make180(e[2]), make180(e[3]), make180(e[4]))    # make 180 (just in case)
 
 #' 
 ## ----prep-ras-data------------------------------------------------------------------------------------------------------
@@ -209,7 +218,7 @@ daily_dates <- intersect(as.character(tracking_dates), as.character(eov_dates))
 ncIn <- sapply(1:length(daily_dates), function(x) ncs[grepl(daily_dates[x],ncs)])
 
 # convert ncs to raster stack
-ras <- raster::stack(ncIn)
+ras <- {suppressWarnings(raster::stack(ncIn))}
 
 if(params$eov == 'sst'){
 nc_dates <- ncIn %>% 
@@ -258,122 +267,67 @@ mapdata <- map_data('world', wrap=c(-25,335), ylim=c(-55,75)) %>%
 if(params$eov == 'sst'){
     eov_df <- g_df_subset %>% mutate(date = as.Date(date)) #%>% filter(date == '2023-07-11')
 } else if(params$eov == 'chla'){
-    eov_df <- g_df_subset %>% mutate(date = as.Date(date))  #%>% filter(date == '2023-07-11')
+    eov_df <- g_df_subset %>% mutate(date = as.Date(date)) #%>%
+       # mutate(val = log(val)) #%>% filter(date == '2023-07-11')
 }
 
 turtles_df = turtlesgeo %>% filter(date %in% nc_dates)
 
 release_loc = data.frame(lat=39.315, lon=213.9333)
 
-params$barheight = 28.5 #38
-params$plot_text_size = 14
+p_barheight = 28.5 #38
+p_plot_text_size = 14
+
+## Functionalized version ---------------------------
+# test_cpal = c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9)), "#9e2a2b", "firebrick4", "#540b0e", "#540b0e")
+
+gg_static <- get_static_plot(
+  eov = params$eov,
+  eov_df = eov_df,
+  turtles_df = turtles_df,
+  e,
+  release_loc,
+  cpal = cpal,
+  cbar_breaks,
+  cbar_limits
+)
 
 
-## GGPLOT STATIC  --------------------------------------------------------------------------------------------------------------------
-gg_smooth_trial <- 
-    ggplot() +
-    geom_tile(
-        # data = sst_df,
-        data = eov_df,
-        aes(x = x, y = y, fill = val, group = date)) +
-
-#    geom_line(data=eov_df %>% mutate(date = as.Date(date)) %>% filter(val == 17),aes(x=x,y=y, group=1), color="snow", alpha = 0.40, size=1.25)+
-    
-    ## add smoother for tzcf -- Hold off on smoother for now...
-    {
-        if (params$eov=='sst') {
-            geom_smooth(data=eov_df %>% mutate(date = as.Date(date)) %>% filter(val >= contour_val_min & val <= contour_val_max),aes(x=x,y=y),
-                        method="loess",
-                        span=0.3,
-                        se=F,
-                        color="snow", alpha = 0.40, size=1.25)
-        }
-    } +
-
-    # add coast 
-    geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black") +
-    
-
-    {
-        if ( params$eov=='chla'){
-            scale_fill_stepsn(colours = c( "gray99", cpal[2:length(cpal)]),
-                              breaks = seq(0,1.8,0.1),
-                              # limits = c(0, 2.0),
-                              na.value = 'snow',
-                              name = "Chl (mg/m^3)")
-        } else if ( params$eov=='sst') {
-            scale_fill_gradientn(colours = 
-                                     # cpal[12:length(cpal)],
-                                     cpal[9:length(cpal)],
-                                 # breaks=seq(10,25,2),
-                                 # limits = c(9.25,25),
-                                 breaks=seq(6,32,2),
-                                 limits = c(4,33),
-                                 na.value = 'snow',
-                                 name = "SST (°C)")
-        }
-    } +
-    
-    
-    # turtle daily movements
-    geom_point(data=turtles_df %>% 
-                        mutate(lon = make360(lon)),
-                    aes(x=lon,y=lat), color = "azure2",
-                     # fill = "#2a9d8f", shape = 21,
-                    fill = "#3c096c", shape = 21,
-                    stroke = 1, alpha = 0.90, size=3.25) +
-
-    # release location
-    geom_point(data=release_loc, aes(x=lon, y=lat), fill = "lightgray",
-               color = "black", shape = 4, size = 5.5) +
-
-    labs(x = "\n \n Longitude \n", y = "\n Latitude \n \n ") +
-    # theme(legend.position = "none") +
-    
-    theme_minimal() + theme(text=element_text(size=params$plot_text_size)) +
-    # coord_sf(xlim = c(make360(-160), make360(-140)), ylim = c(35, 45), expand = FALSE, crs = st_crs(4326)) +
-    coord_sf(xlim = c(make360(e[1]+1), make360(e[2])), ylim = c(e[3], e[4]), expand = FALSE, crs = st_crs(4326)) +
-    guides(fill = guide_colourbar(#title = "SST (°C)", 
-                                  barheight = params$barheight,
-                                  ticks = TRUE)) + 
-    # # facet_wrap(~date)
-    NULL
-
-
-    
-#' 
-## ----trial-animate-plot-------------------------------------------------------------------------------------------------
 ## Animate Tracks by Date ----- ----------------
 if(params$eov == 'sst'){
     title_eov <- 'sea surface temperature (SST)'
     subtitle_text_col <- 'snow'
-    caption_iso <- '' #'The white line represents the 17°C isotherm. '
-    eov_source <- 'NOAA Coral Reef Watch 5km Daily SST'
+        caption_iso <- 'The white line represents the 17°C isotherm. '
+        eov_source <- 'NOAA Coral Reef Watch 5km Daily SST'
 } else if(params$eov == 'chla'){
     title_eov <- 'chlorophyll-a (Chl)'
     subtitle_text_col <- 'gray8'
-    caption_iso <- 'The 0.2 mg/m^3 isopleth represents the approximate TZCF position'
-    eov_source <- 'VIIRS Near Real-Time, DINEOF Gap-Filled 9km Daily Chl Concentration'
+        caption_iso <- 'The 0.2 mg/m^3 isopleth represents the approximate TZCF position in the eastern North Pacific. '
+        eov_source <- 'VIIRS Near Real-Time, DINEOF Gap-Filled 9km Daily Chl Concentration'
 }
 
-anim_trial = gg_smooth_trial + transition_time(date) +    # fyi, this requires install of transformr (devtools::install_github("thomasp85/transformr"))
+anim_trial = gg_static + transition_time(date) +    # fyi, this requires install of transformr (devtools::install_github("thomasp85/transformr"))
     labs(title = str_c("STRETCH Daily turtle movements (n=25) with ", title_eov),
          subtitle = "Date: {frame_time}", 
-         caption = str_c("\n \n Raw tracking data from ARGOS averaged to 1 daily location per turtle \n ", caption_iso,"Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
-                  # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
-     theme(
-           plot.title = element_text(size=16, face="bold", margin=margin(t=20,b=0), hjust=0.03),
-           plot.subtitle = element_text(size = 16, face="bold", margin=margin(t=30,b=-30), hjust=0.025, color=subtitle_text_col),
-           plot.caption = element_text(size=12),
-           plot.margin = unit(c(0.75, 0, 0.5, 0), "cm")) +
-
+         caption = str_c("\n \n Raw tracking data from ARGOS averaged to 1 daily location per turtle \n ", caption_iso, "Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
+    # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
+    theme(
+        # element_text(size=p_plot_text_size),
+        plot.title = element_text(size=16, face="bold", margin=margin(t=20,b=0), hjust=0.03),
+        plot.subtitle = element_text(size = 16, face="bold", margin=margin(t=30,b=-30), hjust=0.025, color=subtitle_text_col),
+        plot.caption = element_text(size=12),
+        plot.margin = unit(c(0.75, 0, 0.5, 0), "cm")) +
+    # guides(fill = guide_colourbar(
+    #     barheight = p_barheight
+    # )) +
+    
     shadow_wake(wake_length=0.5, alpha = 0.2, wrap=FALSE,
                 falloff = 'sine-in', exclude_phase = 'enter', size=0.75,
                 exclude_layer = c(1,2, length(daily_dates))
-                ) +
+    ) +
     enter_fade() +
     exit_disappear() +  
-
+    
     NULL
 
 
@@ -381,21 +335,142 @@ anim_trial = gg_smooth_trial + transition_time(date) +    # fyi, this requires i
 ## ----trial-save-mp------------------------------------------------------------------------------------------------------
 ## Save as MP4 (Faster render)
 gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2, 
-        # width = 1460, height = 720, res = 104,
-        width = 1640, height = 900, res = 104,
-                   renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_full_v5.mp4')))
+                   # width = 1460, height = 720, res = 104,
+                   width = 1640, height = 900, res = 104,
+                   renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_full_contours_v3.mp4')))
 
 
-# ## Save as GIF
-# gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2, 
-#                    # detail = 5,
-#                    # height = 4, #width = 3000,
-#                    #  # height = 700, #width = 2000, 
-#                    # units = "in", res=150,
-#                    width = 1400, height = 865,
-#                    renderer = gifski_renderer(loop = TRUE))
-# 
-# anim_save(animation = last_animation(),
-#           fps =2,
-#           nframes =  length(daily_dates),str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_v1.gif'))
-# 
+
+
+### MANUAL PLOTTING BELOW ----------------------------
+
+#' ## GGPLOT STATIC  --------------------------------------------------------------------------------------------------------------------
+#' gg_smooth_trial <- 
+#'     ggplot() +
+#'     geom_tile(
+#'         # data = sst_df,
+#'         data = eov_df,
+#'         aes(x = x, y = y, fill = val, group = date)) +
+#' 
+#' #    geom_line(data=eov_df %>% mutate(date = as.Date(date)) %>% filter(val == 17),aes(x=x,y=y, group=1), color="snow", alpha = 0.40, size=1.25)+
+#'     
+#'     ## add smoother for tzcf -- Hold off on smoother for now...
+#'     {
+#'         if (params$eov=='sst') {
+#'             geom_smooth(data=eov_df %>% mutate(date = as.Date(date)) %>% filter(val >= contour_val_min & val <= contour_val_max),aes(x=x,y=y),
+#'                         method="loess",
+#'                         span=0.3,
+#'                         se=F,
+#'                         color="snow", alpha = 0.40, size=1.25)
+#'         }
+#'     } +
+#' 
+#'     # add coast 
+#'     geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black") +
+#'     
+#' 
+#'     {
+#'         if ( params$eov=='chla'){
+#'             scale_fill_stepsn(colours = c( "gray99", cpal[2:length(cpal)]),
+#'                               breaks = seq(0,1.8,0.1),
+#'                               # limits = c(0, 2.0),
+#'                               na.value = 'snow',
+#'                               name = "Chl (mg/m^3)")
+#'         } else if ( params$eov=='sst') {
+#'             scale_fill_gradientn(colours = 
+#'                                      # cpal[12:length(cpal)],
+#'                                      cpal[9:length(cpal)],
+#'                                  # breaks=seq(10,25,2),
+#'                                  # limits = c(9.25,25),
+#'                                  breaks=seq(6,32,2),
+#'                                  limits = c(4,33),
+#'                                  na.value = 'snow',
+#'                                  name = "SST (°C)")
+#'         }
+#'     } +
+#'     
+#'     
+#'     # turtle daily movements
+#'     geom_point(data=turtles_df %>% 
+#'                         mutate(lon = make360(lon)),
+#'                     aes(x=lon,y=lat), color = "azure2",
+#'                      # fill = "#2a9d8f", shape = 21,
+#'                     fill = "#3c096c", shape = 21,
+#'                     stroke = 1, alpha = 0.90, size=3.25) +
+#' 
+#'     # release location
+#'     geom_point(data=release_loc, aes(x=lon, y=lat), fill = "lightgray",
+#'                color = "black", shape = 4, size = 5.5) +
+#' 
+#'     labs(x = "\n \n Longitude \n", y = "\n Latitude \n \n ") +
+#'     # theme(legend.position = "none") +
+#'     
+#'     theme_minimal() + theme(text=element_text(size=params$plot_text_size)) +
+#'     # coord_sf(xlim = c(make360(-160), make360(-140)), ylim = c(35, 45), expand = FALSE, crs = st_crs(4326)) +
+#'     coord_sf(xlim = c(make360(e[1]+1), make360(e[2])), ylim = c(e[3], e[4]), expand = FALSE, crs = st_crs(4326)) +
+#'     guides(fill = guide_colourbar(#title = "SST (°C)", 
+#'                                   barheight = params$barheight,
+#'                                   ticks = TRUE)) + 
+#'     # # facet_wrap(~date)
+#'     NULL
+#' 
+#' 
+#'     
+#' #' 
+#' ## ----trial-animate-plot-------------------------------------------------------------------------------------------------
+#' ## Animate Tracks by Date ----- ----------------
+#' if(params$eov == 'sst'){
+#'     title_eov <- 'sea surface temperature (SST)'
+#'     subtitle_text_col <- 'snow'
+#'     caption_iso <- '' #'The white line represents the 17°C isotherm. '
+#'     eov_source <- 'NOAA Coral Reef Watch 5km Daily SST'
+#' } else if(params$eov == 'chla'){
+#'     title_eov <- 'chlorophyll-a (Chl)'
+#'     subtitle_text_col <- 'gray8'
+#'     caption_iso <- 'The 0.2 mg/m^3 isopleth represents the approximate TZCF position'
+#'     eov_source <- 'VIIRS Near Real-Time, DINEOF Gap-Filled 9km Daily Chl Concentration'
+#' }
+#' 
+#' anim_trial = gg_smooth_trial + transition_time(date) +    # fyi, this requires install of transformr (devtools::install_github("thomasp85/transformr"))
+#'     labs(title = str_c("STRETCH Daily turtle movements (n=25) with ", title_eov),
+#'          subtitle = "Date: {frame_time}", 
+#'          caption = str_c("\n \n Raw tracking data from ARGOS averaged to 1 daily location per turtle \n ", caption_iso,"Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
+#'                   # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
+#'      theme(
+#'            plot.title = element_text(size=16, face="bold", margin=margin(t=20,b=0), hjust=0.03),
+#'            plot.subtitle = element_text(size = 16, face="bold", margin=margin(t=30,b=-30), hjust=0.025, color=subtitle_text_col),
+#'            plot.caption = element_text(size=12),
+#'            plot.margin = unit(c(0.75, 0, 0.5, 0), "cm")) +
+#' 
+#'     shadow_wake(wake_length=0.5, alpha = 0.2, wrap=FALSE,
+#'                 falloff = 'sine-in', exclude_phase = 'enter', size=0.75,
+#'                 exclude_layer = c(1,2, length(daily_dates))
+#'                 ) +
+#'     enter_fade() +
+#'     exit_disappear() +  
+#' 
+#'     NULL
+#' 
+#' 
+#' #' 
+#' ## ----trial-save-mp------------------------------------------------------------------------------------------------------
+#' ## Save as MP4 (Faster render)
+#' gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2, 
+#'         # width = 1460, height = 720, res = 104,
+#'         width = 1640, height = 900, res = 104,
+#'                    renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_full_v5.mp4')))
+#' 
+#' 
+#' # ## Save as GIF
+#' # gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2, 
+#' #                    # detail = 5,
+#' #                    # height = 4, #width = 3000,
+#' #                    #  # height = 700, #width = 2000, 
+#' #                    # units = "in", res=150,
+#' #                    width = 1400, height = 865,
+#' #                    renderer = gifski_renderer(loop = TRUE))
+#' # 
+#' # anim_save(animation = last_animation(),
+#' #           fps =2,
+#' #           nframes =  length(daily_dates),str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_v1.gif'))
+#' # 
