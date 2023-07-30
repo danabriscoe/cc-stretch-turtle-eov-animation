@@ -273,6 +273,7 @@ get_static_plot <- function(eov, eov_df, turtles_df, e, release_loc, cpal = cpal
     mapdata <- map_data('world', wrap=c(-25,335), ylim=c(-55,75)) %>%
         filter(long >= 120 & long <= 270 & lat >= 15 & lat <=80) 
     
+
     p_barheight = 28.5 #38
     p_plot_text_size = 14
    

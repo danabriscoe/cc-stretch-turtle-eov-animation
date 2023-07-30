@@ -90,9 +90,9 @@ daily_avg_data <- raw_data %>%
 params <-list()
 
 # Set param to run
-# params$eov = 'sst'
+params$eov = 'sst'
 # params$eov = 'ssta'
-params$eov = 'chla'
+# params$eov = 'chla'
 
 if(params$eov == 'sst'){
     params$nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/deploy_reports"
@@ -278,6 +278,28 @@ release_loc = data.frame(lat=39.315, lon=213.9333)
 p_barheight = 28.5 #38
 p_plot_text_size = 14
 
+
+# >>>>>>>> TO UPDATE FUNCT WITH THIS INFO
+if(save_ext == 'mp4'){
+    plot_params <- list(
+        turtle_pt_size = 3.25,
+        barheight = 28.5, #38
+        plot_text_size = 14,
+        title_size = 18,
+        subtitle_size = 16,
+        caption_size = 14
+    )  
+}
+if(save_ext == 'gif'){
+    plot_params <- list(
+        turtle_pt_size = 4.25,
+        barheight = 38
+        plot_text_size = 16,
+        title_size = 18,
+        subtitle_size = 16,
+        caption_size = 14
+    )
+}
 ## Functionalized version ---------------------------
 # test_cpal = c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9)), "#9e2a2b", "firebrick4", "#540b0e", "#540b0e")
 
@@ -302,7 +324,7 @@ if(params$eov == 'sst'){
 } else if(params$eov == 'chla'){
     title_eov <- 'chlorophyll-a (Chl)'
     subtitle_text_col <- 'gray8'
-        caption_iso <- 'The 0.2 mg/m^3 isopleth represents the approximate TZCF position in the eastern North Pacific. '
+        caption_iso <- 'The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
         eov_source <- 'VIIRS Near Real-Time, DINEOF Gap-Filled 9km Daily Chl Concentration'
 }
 
@@ -461,16 +483,16 @@ gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2,
 #'                    renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_full_v5.mp4')))
 #' 
 #' 
-#' # ## Save as GIF
-#' # gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2, 
-#' #                    # detail = 5,
-#' #                    # height = 4, #width = 3000,
-#' #                    #  # height = 700, #width = 2000, 
-#' #                    # units = "in", res=150,
-#' #                    width = 1400, height = 865,
-#' #                    renderer = gifski_renderer(loop = TRUE))
-#' # 
-#' # anim_save(animation = last_animation(),
-#' #           fps =2,
-#' #           nframes =  length(daily_dates),str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_v1.gif'))
+## Save as GIF
+gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2,
+                   # detail = 5,
+                   # height = 4, #width = 3000,
+                   #  # height = 700, #width = 2000,
+                   # units = "in", res=150,
+                   width = 1400, height = 865,
+                   renderer = gifski_renderer(loop = TRUE))
+
+anim_save(animation = last_animation(),
+          fps =2,
+          nframes =  length(daily_dates),str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_vgif.gif'))
 #' # 
