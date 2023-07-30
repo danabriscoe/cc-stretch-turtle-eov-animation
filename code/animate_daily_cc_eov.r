@@ -90,9 +90,9 @@ daily_avg_data <- raw_data %>%
 params <-list()
 
 # Set param to run
-# params$eov = 'sst'
+params$eov = 'sst'
 # params$eov = 'ssta'
-params$eov = 'chla'
+# params$eov = 'chla'
 
 if(params$eov == 'sst'){
     params$nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/deploy_reports"
@@ -281,6 +281,7 @@ p_plot_text_size = 14
 
 # >>>>>>>> TO UPDATE FUNCT WITH THIS INFO
 save_ext <- 'gif'
+# save_ext <- 'mp4'
 
 if(save_ext == 'mp4'){
     plot_params <- list(
@@ -334,7 +335,7 @@ if(params$eov == 'sst'){
 anim_trial = gg_static + transition_time(date) +    # fyi, this requires install of transformr (devtools::install_github("thomasp85/transformr"))
     labs(title = str_c("STRETCH Daily turtle movements (n=25) with ", title_eov),
          subtitle = "Date: {frame_time}", 
-         caption = str_c("\n \n Raw tracking data from ARGOS averaged to 1 daily location per turtle \n ", caption_iso, "Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
+         caption = str_c("\n \n Raw tracking data from ARGOS averaged to 1 daily location per turtle (purple circles) \n ", caption_iso, "Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
     # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
     theme(
         # element_text(size=p_plot_text_size),
