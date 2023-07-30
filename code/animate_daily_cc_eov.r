@@ -90,9 +90,9 @@ daily_avg_data <- raw_data %>%
 params <-list()
 
 # Set param to run
-params$eov = 'sst'
+# params$eov = 'sst'
 # params$eov = 'ssta'
-# params$eov = 'chla'
+params$eov = 'chla'
 
 if(params$eov == 'sst'){
     params$nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/deploy_reports"
@@ -280,6 +280,8 @@ p_plot_text_size = 14
 
 
 # >>>>>>>> TO UPDATE FUNCT WITH THIS INFO
+save_ext <- 'gif'
+
 if(save_ext == 'mp4'){
     plot_params <- list(
         turtle_pt_size = 3.25,
@@ -292,12 +294,12 @@ if(save_ext == 'mp4'){
 }
 if(save_ext == 'gif'){
     plot_params <- list(
-        turtle_pt_size = 4.25,
-        barheight = 38
-        plot_text_size = 16,
-        title_size = 18,
-        subtitle_size = 16,
-        caption_size = 14
+        turtle_pt_size = 5.25,
+        barheight = 34,
+        plot_text_size = 22,
+        title_size = 24,
+        subtitle_size = 22,
+        caption_size = 20
     )
 }
 ## Functionalized version ---------------------------
@@ -311,7 +313,8 @@ gg_static <- get_static_plot(
   release_loc,
   cpal = cpal,
   cbar_breaks,
-  cbar_limits
+  cbar_limits,
+  plot_params
 )
 
 
@@ -335,9 +338,9 @@ anim_trial = gg_static + transition_time(date) +    # fyi, this requires install
     # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
     theme(
         # element_text(size=p_plot_text_size),
-        plot.title = element_text(size=16, face="bold", margin=margin(t=20,b=0), hjust=0.03),
-        plot.subtitle = element_text(size = 16, face="bold", margin=margin(t=30,b=-30), hjust=0.025, color=subtitle_text_col),
-        plot.caption = element_text(size=12),
+        plot.title = element_text(size=plot_params$title_size, face="bold", margin=margin(t=20,b=0), hjust=0.03),
+        plot.subtitle = element_text(size = plot_params$subtitle_size, face="bold", margin=margin(t=30,b=-30), hjust=0.025, color=subtitle_text_col),
+        plot.caption = element_text(size=plot_params$caption_size),
         plot.margin = unit(c(0.75, 0, 0.5, 0), "cm")) +
     # guides(fill = guide_colourbar(
     #     barheight = p_barheight
@@ -355,12 +358,14 @@ anim_trial = gg_static + transition_time(date) +    # fyi, this requires install
 
 #' 
 ## ----trial-save-mp------------------------------------------------------------------------------------------------------
+
+if(save_ext == 'mp4'){
 ## Save as MP4 (Faster render)
 gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2, 
                    # width = 1460, height = 720, res = 104,
                    width = 1640, height = 900, res = 104,
                    renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_full_contours_v3.mp4')))
-
+}
 
 
 
@@ -484,7 +489,13 @@ gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2,
 #' 
 #' 
 ## Save as GIF
-gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2,
+if(save_ext == 'gif'){
+        gganimate::animate(anim_trial + theme(
+            axis.text.x = element_text(size=(plot_params$plot_text_size - 2)),
+            axis.text.y = element_text(size=(plot_params$plot_text_size - 2)),
+            legend.title=element_text(size=(plot_params$plot_text_size - 2))
+        ), 
+        nframes = length(daily_dates), fps =2,
                    # detail = 5,
                    # height = 4, #width = 3000,
                    #  # height = 700, #width = 2000,
@@ -494,5 +505,5 @@ gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2,
 
 anim_save(animation = last_animation(),
           fps =2,
-          nframes =  length(daily_dates),str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_vgif.gif'))
-#' # 
+          nframes =  length(daily_dates),str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_v4gif.gif'))
+} 

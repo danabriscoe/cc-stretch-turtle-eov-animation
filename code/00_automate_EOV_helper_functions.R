@@ -267,8 +267,8 @@ get_npac_map <- function(xy, lon_type = '360', add_deploy_lons=TRUE, cpal, col_b
 
 
 
-# get static plot (for gganimate) ----
-get_static_plot <- function(eov, eov_df, turtles_df, e, release_loc, cpal = cpal, cbar_breaks, cbar_limits){
+# get static plot (for gganimate) --
+get_static_plot <- function(eov, eov_df, turtles_df, e, release_loc, cpal = cpal, cbar_breaks, cbar_limits, plot_params){
    
     mapdata <- map_data('world', wrap=c(-25,335), ylim=c(-55,75)) %>%
         filter(long >= 120 & long <= 270 & lat >= 15 & lat <=80) 
@@ -318,18 +318,18 @@ get_static_plot <- function(eov, eov_df, turtles_df, e, release_loc, cpal = cpal
                                   breaks = cbar_breaks,
                                   limits = cbar_limits,
                                   na.value = 'snow',
-                                  name = "Chl (mg/m^3)")
+                                  name = "Chl \n(mg/m^3) \n ")
             } else if (eov =='sst') {
                 scale_fill_gradientn(colours = 
                                          # cpal[12:length(cpal)],
                                          # breaks=seq(10,25,2),
                                          # limits = c(9.25,25),
-                                         cpal[9:length(cpal)],
+                                         cpal[11:length(cpal)],
                                      
                                      breaks=cbar_breaks, #seq(6,32,2),
                                      limits = c(min(cbar_limits),max(cbar_limits)),
                                      na.value = 'snow',
-                                     name = "SST (°C)")
+                                     name = "SST (°C) \n")
             }
         } +
         
@@ -340,20 +340,20 @@ get_static_plot <- function(eov, eov_df, turtles_df, e, release_loc, cpal = cpal
                    aes(x=lon,y=lat), color = "azure2",
                    # fill = "#2a9d8f", shape = 21,
                    fill = "#3c096c", shape = 21,
-                   stroke = 1, alpha = 0.90, size=3.25) +
+                   stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size) +
         
         # release location
         geom_point(data=release_loc, aes(x=lon, y=lat), fill = "lightgray",
                    color = "black", shape = 4, size = 5.5) +
         
-        labs(x = "\n \n Longitude \n", y = "\n Latitude \n \n ") +
+        labs(x = "\n \n Longitude \n", y = "\n \n Latitude \n \n ") +
         # theme(legend.position = "none") +
         
-        theme_minimal() + theme(text=element_text(size=p_plot_text_size)) +
+        theme_minimal() + theme(text=element_text(size=plot_params$plot_text_size)) +
         # # coord_sf(xlim = c(make360(-160), make360(-140)), ylim = c(35, 45), expand = FALSE, crs = st_crs(4326)) +
         coord_sf(xlim = c(make360(e[1]+1), make360(e[2])), ylim = c(e[3], e[4]), expand = FALSE, crs = st_crs(4326)) +
         guides(fill = guide_colourbar(
-            barheight = p_barheight,
+            barheight = plot_params$barheight,
             ticks = TRUE)
             ) + 
         # facet_wrap(~date) +
