@@ -271,7 +271,7 @@ if(params$eov == 'sst'){
        # mutate(val = log(val)) #%>% filter(date == '2023-07-11')
 }
 
-turtles_df = turtlesgeo %>% filter(date %in% nc_dates)
+turtles_df = turtlesgeo %>% filter(date %in% nc_dates) 
 
 release_loc = data.frame(lat=39.315, lon=213.9333)
 
@@ -330,6 +330,11 @@ if(params$eov == 'sst'){
     subtitle_text_col <- 'gray8'
         caption_iso <- 'The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
         eov_source <- 'VIIRS Near Real-Time, DINEOF Gap-Filled 9km Daily Chl Concentration'
+} else if(params$eov == 'current'){
+    title_eov <- 'surface current flow'
+    subtitle_text_col <- 'gray8'
+        caption_iso <- 'The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
+        eov_source <- 'Calculated from Near Real-Time Geostrohic Current (u, v) 0.2 degrees spatial res, Daily'
 }
 
 anim_trial = gg_static + transition_time(date) +    # fyi, this requires install of transformr (devtools::install_github("thomasp85/transformr"))
