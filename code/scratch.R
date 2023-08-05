@@ -634,6 +634,7 @@ params$varname = 'currents'
 ncs <- list.files(path='~/Downloads/', pattern =  params$varname, full.names=T)
 print(str_c('most recent ncdf - ', ncs[length(ncs)]))
 
+ncs <- '/Users/briscoedk/Downloads//miamicurrents_d2cc_c518_5667.nc'
 # will need to fix fdates when start batch downloading with api. for now, it was a bulk download from erddap
 ncIn <- sapply(1:length(ncs), function(x) ncs[grepl(ncs[x],ncs)])
 
@@ -643,11 +644,12 @@ ncIn <- sapply(1:length(ncs), function(x) ncs[grepl(ncs[x],ncs)])
 ret_uv.se<- prep_uv_geostrophic(ncIn)        
 
 # rename for consistency
-uv.se <- ret_uv.se
-uv.se <- uv.se %>% 
-    mutate(date = as.Date(date))
+uv.se <- ret_uv.se %>%
+# uv.se <- uv.se %>% 
+    mutate(date = as.Date(date)) %>%
+    filter(date >= '2023-07-11')
 
-ret_uv.se_360 <- ret_uv.se %>% mutate(lon = make360(lon))
+# ret_uv.se_360 <- ret_uv.se %>% mutate(lon = make360(lon))
 turtles_df_hauoli <- turtles_df %>% filter(id == '243194')
 
 
@@ -759,10 +761,10 @@ ggplot() +
     # facet_wrap(~date) +
     NULL
 
-title_eov <- 'surface current velocity'
+title_eov <- 'surface currents'
 subtitle_text_col <- 'gray8'
     caption_iso <- 'The orange circle is the current date-location. The darker circles are the previous locations. ' #The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
-    eov_source <- 'Velocity & vectors (white arrows) are calculated from Daily Near Real-Time Geostrophic Current (u, v), 0.2 degrees spatial res'
+    eov_source <- 'Velocity & vectors (white arrows) are calculated from Daily Near Real-Time Geostrophic Current (u, v), 0.2 degrees spatial res, NOAA CoastWatch'
     
 gg_currents + 
     labs(title = str_c("STRETCH Daily turtle movements of Turtle Hau'oli (#17) with ", title_eov),
@@ -834,3 +836,435 @@ plot_animated <- image_animate(plot_joined, fps = 1)
 image_write(image = plot_animated,
             path = str_c('~/Downloads/', "hauoli_surface_currents_vectors.gif"))
 
+
+
+
+raw_data[raw_data$lon > -130,]
+
+
+## try to functionalize currents
+gg_static <-
+# gg_currents <- 
+
+ggplot() +
+    metR::geom_contour_fill(data = uv.se #%>%
+                                # filter(date == i)
+                                , 
+                            aes(x = lon, y = lat, z = vel), na.fill = TRUE, bins = 70) +
+    metR::geom_vector(data = uv.se  %>%
+                          filter(date == i), 
+                      aes(x = lon, y = lat, dx = u, dy = v), 
+                      arrow.angle = 30, arrow.type = "open", arrow.length = 1.25, 
+                      show_guide = FALSE, 
+                      pivot = 0,preserve.dir = TRUE, direction = "ccw", color = 'snow')+
+    scale_mag(max = 0.15, name = "", max_size = 0.7)+
+    # geom_sf(data = wio,fill = "lightgrey", col = "black")+
+    # coord_sf(ylim = c(-15,-6), xlim = c(39, 52))+
+    coord_sf(ylim = c(35,42), xlim = c(-155, -140), expand = FALSE, crs = st_crs(4326)) +
+    scale_fill_viridis_c(name = "Velocity\n(m/s)",#colours = cpal, 
+                         limits = c(0, 0.25),
+                         breaks = seq(0, 0.2, 0.05)) +
+    scale_alpha(guide = "none") +
+    theme_bw()+
+    theme(legend.position = "right",
+          legend.key.height = unit(1.4, "cm"),
+          legend.background = element_blank(),
+          axis.text = element_text(size = 12, colour = 1))+
+    labs(x = "", y = "") +
+    
+    # pts up to current
+    geom_point(data=turtles_df_hauoli %>% 
+                   mutate(date = as.Date(date)) %>%
+                   # filter(date <= i) %>%
+                   mutate(lon = make180(lon)),
+               aes(x=lon,y=lat), color = "gray90",
+               # fill = "#2a9d8f", shape = 21,
+               fill = "black", shape = 21,
+               stroke = 0.5, alpha = 0.90, size=plot_params$turtle_pt_size-1.5) +
+    
+    geom_line(data=turtles_df_hauoli %>%
+                  filter(date <= i) %>%
+                  mutate(lon = make180(lon)),
+              aes(x=lon,y=lat, group=1), color = "gray20", alpha = 0.40, linewidth=1.25)+
+    
+    # current frame
+    # pts up to current
+    geom_point(data=turtles_df_hauoli %>% 
+                   mutate(date = as.Date(date)) %>%
+                   # filter(date == i) %>%
+                   mutate(lon = make180(lon)),
+               aes(x=lon,y=lat), color = "gray90",
+               # fill = "#2a9d8f", shape = 21,
+               fill = "orange", shape = 21,
+               stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size) +
+    
+    geom_line(data=turtles_df_hauoli %>%
+                  # filter(date == i) %>%
+                  mutate(lon = make180(lon)),
+              aes(x=lon,y=lat, group=1), color = "gray20", alpha = 0.40, linewidth=1.25)+
+    
+    # release location
+    geom_point(data=release_loc, aes(x=make180(lon), y=lat), fill = "black",
+               color = "black", shape = 4, size = 6.5) +
+    
+    labs(x = "\n \n Longitude \n", y = "\n \n Latitude \n \n ",
+         subtitle = paste0('Date: ', i)) +
+    
+    # coord_sf(ylim = c(35,42), xlim = c(-155, -140))+
+    
+    # facet_wrap(~date) +
+    NULL
+
+title_eov <- 'surface currents'
+subtitle_text_col <- 'gray8'
+    caption_iso <- 'The orange circle is the current date-location. The darker circles are the previous locations. ' #The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
+    eov_source <- 'Velocity & vectors (white arrows) are calculated from Daily Near Real-Time Geostrophic Current (u, v), 0.2 degrees spatial res, NOAA CoastWatch'
+    
+    gg_currents + 
+        labs(title = str_c("STRETCH Daily turtle movements of Turtle Hau'oli (#17) with ", title_eov),
+             # subtitle = i, 
+             caption = str_c("\n \n Raw tracking data from ARGOS averaged to 1 daily location (circles) \n ", caption_iso, "Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
+        # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
+        theme(
+            # element_text(size=p_plot_text_size),
+            # plot.title = element_text(size=plot_params$title_size, face="bold", margin=margin(t=20,b=0), hjust=0.03),
+            # plot.subtitle = element_text(size = plot_params$subtitle_size, face="bold", margin=margin(t=30,b=-30), hjust=0.025, color=subtitle_text_col),
+            plot.title = element_text(size=plot_params$title_size, face="bold"), #, margin=margin(t=20,b=0), hjust=0.03),
+            plot.subtitle = element_text(size = plot_params$subtitle_size, face="bold", color=subtitle_text_col), #, margin=margin(t=30,b=-30), hjust=0.025),
+            
+            plot.caption = element_text(size=plot_params$caption_size),
+            plot.margin = unit(c(0.75, 0, 0.5, 0), "cm")) +
+        guides(fill = guide_colourbar(
+            barheight = plot_params$barheight
+        ))
+    
+    
+    # })
+    # 
+    
+    ggplot() +
+        geom_segment(data = uv.se %>% filter(date < '2023-07-12'), 
+                     aes(x = lon, xend = lon+u/60, y = lat, 
+                         yend = lat+v/60), arrow = arrow(length = unit(0.25, "cm"))) +
+        # geom_sf(data = tz.ke, fill = "grey85", col = 1)+
+        coord_sf(ylim = c(35, 50), xlim =  c(-160, -140))+
+        # scale_x_continuous(breaks = c(38.8,40))+
+        theme_bw()+
+        theme(axis.text = element_text(size = 11, colour = 1))+
+        labs(x = NULL, y = NULL)
+    
+    
+## USE THIS TUTORIAL FOR VELOCITY AND ANIMATIONS -----------------------------------------------------------------------------
+# source: https://semba-blog.netlify.app/10/29/2018/animating-oceanographic-data-in-r-with-ggplot2-and-gganimate/
+    
+# require(xtractomatic)
+require(tidyverse)
+require(oce)
+require(lubridate)
+require(gganimate)
+require(sf)
+    
+
+## zonal compoent
+wind_x = xtracto_3D(dtype = "qsux101day", 
+                    xpos = c(38.85, 40), 
+                    ypos = c(-6.8, -4.5), 
+                    tpos = c("2000-01-01", "2008-12-31"))
+# meridional component
+wind_y = xtracto_3D(dtype = "qsuy101day", 
+                    xpos = c(38.85, 40), 
+                    ypos = c(-6.8, -4.5), 
+                    tpos = c("2000-01-01", "2008-12-31"))
+## Extract
+longitude = wind_x$longitude
+latitude = wind_x$latitude
+time = wind_x$time %>% as.Date()
+# eastward velocity (zonal)
+u = wind_x$data
+# northward velocity (meridional)
+v = wind_y$data
+
+    # calculate wind velocity
+    velocity = sqrt(u^2 + v^2)
+    
+    
+# similar to above    
+ugos_ras <- raster::brick(ncIn, varname='u_current') # ssha vectors 
+vgos_ras <- raster::brick(ncIn, varname='v_current') # ssha vectors 
+
+uras_df <- ugos_ras %>%
+    rasterToPoints %>%
+    as.data.frame() %>%
+    `colnames<-`(c("x", "y", names(ugos_ras))) %>%
+    pivot_longer(cols = starts_with("X20"),
+                 names_to = "layer",
+                 values_to = "u") %>%
+    mutate(layer = substr(layer, 2, 14)) %>%
+    mutate(date = as.POSIXct(layer, "%Y.%m.%d", tz = "UTC")
+    )
+
+vras_df <- vgos_ras %>%
+    rasterToPoints %>%
+    as.data.frame() %>%
+    `colnames<-`(c("x", "y", names(vgos_ras))) %>%
+    pivot_longer(cols = starts_with("X20"),
+                 names_to = "layer",
+                 values_to = "v") %>%
+    mutate(layer = substr(layer, 2, 14)) %>%
+    mutate(date = as.POSIXct(layer, "%Y.%m.%d", tz = "UTC")
+    )
+
+    
+uv_df <- uras_df %>% left_join(., vras_df, by=c("x", "y", "date")) %>%
+    dplyr::select(-c("layer.x", "layer.y")) %>%
+    relocate(date, .after = y) %>%
+    `colnames<-`(c("lon", "lat", "date", "u", "v")) %>%
+    mutate(date = as.POSIXct(date, "%Y.%m.%d")) %>%
+    mutate(velocity = sqrt(u^2 + v^2))
+    
+head(uv_df)
+
+#
+wind = uv_df %>%
+    mutate(day = yday(date) %>%as.integer(), 
+           week = week(date) %>%as.integer(),  month = month(date) %>%as.integer(), 
+           year = year(date) %>%as.integer()) %>%
+    dplyr::select(date,day, week, month, year,lon,lat, u,
+           v, velocity ) %>%
+    mutate(date = as.Date(date))
+    
+wind %>% head()        
+
+wind.date = wind %>% 
+    group_by(lon, lat, date) %>% 
+    summarise(u = median(u, na.rm = TRUE),
+              v = median(v, na.rm = TRUE), 
+              velocity = median(velocity, na.rm = TRUE)) %>%
+    mutate(velocity_kmh = round(velocity * (3.6),2)) # aka 18/5 = 3.6
+
+
+wind.date
+
+# basic
+ggplot() +
+    geom_segment(data = wind.date %>% filter(date < '2023-07-12'),
+                 aes(x = lon, xend = lon+u/250, y = lat,
+                     yend = lat+v/250), arrow = arrow(length = unit(0.35, "cm")),color = 'dodgerblue') +
+    # metR::geom_vector(data = wind.date %>% filter(date < '2023-07-12'), 
+    #                   aes(x = lon, y = lat, dx = u, dy = v), 
+    #                   arrow.angle = 30, arrow.type = "open", arrow.length = 1.25, 
+    #                   show_guide = FALSE, 
+    #                   pivot = 0,preserve.dir = TRUE, direction = "ccw", color = 'dodgerblue')+
+    scale_mag(max = 0.15, name = "", max_size = 0.7)+
+    # geom_sf(data = tz.ke, fill = "grey85", col = 1)+
+    coord_sf(ylim = c(35, 50), xlim =  c(-160, -140))+
+    # scale_x_continuous(breaks = c(38.8,40))+
+    theme_bw()+
+    theme(axis.text = element_text(size = 11, colour = 1))+
+    labs(x = NULL, y = NULL)
+
+
+turtles_df_hauoli <- turtles_df_hauoli %>% filter(date <= max(wind.date$date))
+
+# metR
+gg_currents <- 
+ggplot() +
+    # geom_raster(data = wind.date, aes(x = lon, y = lat, fill = velocity), interpolate = TRUE) +
+    geom_raster(data = wind.date, aes(x = lon, y = lat, fill = velocity_kmh), interpolate = TRUE) +
+    metR::geom_vector(data = wind.date,  
+                      aes(x = lon, y = lat, dx = u, dy = v), 
+                      arrow.angle = 30, arrow.type = "open", arrow.length = 1.25, 
+                      show_guide = FALSE, 
+                      pivot = 0,preserve.dir = TRUE, direction = "cw", color = 'snow') +
+    scale_mag(max = 0.15, name = "", max_size = 0.7)+
+
+    scale_fill_viridis_c(name = "Velocity\n(km/hr)",#colours = cpal, 
+                         alpha = 0.9,
+                         # limits = c(0, 0.25), # m/s
+                         # breaks = seq(0, 0.2, 0.05)) +
+                         limits = c(0, 1.2), # km/hr
+                         breaks = seq(0, 1.2, 0.2)) +
+    scale_alpha(guide = "none") +
+
+
+    geom_point(data=
+                   # turtles_df_hauoli %>% 
+                   turtles_df %>%
+                   mutate(date = as.Date(date)) %>%
+                   filter(date <= max(wind.date$date)) %>%
+                   mutate(lon = make180(lon)),
+               aes(x=lon,y=lat), color = "gray90",
+               # fill = "#2a9d8f", shape = 21,
+               fill = "orange", shape = 21,
+               # stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size) +
+               stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size-1) +
+    
+    # release location
+    geom_point(data=release_loc, aes(x=make180(lon), y=lat), fill = "black",
+               color = "black", stroke = 1, shape = 4, size = 7.5) +
+    
+    
+    labs(x = "\n \n Longitude \n", y = "\n \n Latitude \n \n ") +
+    # coord_sf(ylim = c(35, 50), xlim =  c(-159, -141), expand = FALSE, crs = st_crs(4326)) +
+    coord_sf(ylim = c(37.75, 43.75), xlim =  c(-154, -142), expand = FALSE, crs = st_crs(4326)) +
+
+    theme_bw()+
+    theme(axis.text = element_text(size = 14, colour = 1),
+          legend.text = element_text(size = 14, colour = 1), 
+          legend.title = element_text(size = 14, colour = 1)#,
+          # legend.position = c(.12,.17),
+          # legend.background = element_rect(colour = 1, fill = "white")
+          ) +
+    guides(fill = guide_colourbar(
+        barheight = plot_params$barheight,
+        ticks = TRUE)
+    ) + 
+    # facet_wrap(~date) +
+    NULL
+
+## animate ---
+title_eov <- 'surface currents'
+subtitle_text_col <- 'gray8'
+    caption_iso <- '' #'The orange circle is the current date-location. The darker circles are the previous locations. ' #The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
+    eov_source <- 'Surface velocity and vectors (white arrows) are calculated from Near Real-Time Geostrophic Current (u, v) \n Daily, 0.2 degrees spatial resolution, NOAA CoastWatch'
+    
+
+
+anim_trial <- gg_currents +     
+    # labs(title = str_c("STRETCH Daily turtle movements of Turtle Hau'oli (#17) with ", title_eov),
+    labs(title = str_c("STRETCH Daily  movements of all turtles (n = 25) with ", title_eov),
+    subtitle = "Date : {frame_time}",
+    caption = str_c("\n \n Raw tracking data from ARGOS averaged to 1 daily location (orange circles). ", caption_iso, "Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
+    # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
+    theme(
+        # element_text(size=p_plot_text_size),
+        # plot.title = element_text(size=plot_params$title_size, face="bold", margin=margin(t=20,b=0), hjust=0.03),
+        # plot.subtitle = element_text(size = plot_params$subtitle_size, face="bold", margin=margin(t=30,b=-30), hjust=0.025, color=subtitle_text_col),
+        plot.title = element_text(size=plot_params$title_size, face="bold"), #, margin=margin(t=20,b=0), hjust=0.03),
+        plot.subtitle = element_text(size = plot_params$subtitle_size, face="bold", color=subtitle_text_col), #, margin=margin(t=30,b=-30), hjust=0.025),
+        
+        plot.caption = element_text(size=plot_params$caption_size),
+        plot.margin = unit(c(0.75, 0, 0.5, 0), "cm")) +
+    guides(fill = guide_colourbar(
+        barheight = plot_params$barheight
+    )) +
+    transition_time(date) +
+    ease_aes("linear") +
+
+    shadow_wake(wake_length=0.35, alpha = 0.7, wrap=FALSE,
+                colour = "gray60", fill = "orange",
+        falloff = 'sine-in', exclude_phase = 'enter', size=0.35,
+        exclude_layer = c(1,2, length(daily_dates))
+    ) +
+    enter_fade() +
+    exit_disappear() +  
+    
+    NULL
+
+gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2, 
+                   # width = 1460, height = 720, res = 104,
+                   width = 1640, height = 900, res = 104,
+                   renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_full_contours_v3Aug_interp_kmh_full.mp4')))
+
+
+
+## ZOOMEDview -------------------------------------------------------------------------
+# metR
+gg_currents_zoom <- 
+    ggplot() +
+    # geom_raster(data = wind.date, aes(x = lon, y = lat, fill = velocity), interpolate = TRUE) +
+    geom_raster(data = wind.date, aes(x = lon, y = lat, fill = velocity_kmh), interpolate = TRUE) +
+    metR::geom_vector(data = wind.date,  
+                      aes(x = lon, y = lat, dx = u, dy = v), 
+                      arrow.angle = 30, arrow.type = "open", arrow.length = 1.0, 
+                      show_guide = FALSE, 
+                      pivot = 0,preserve.dir = TRUE, direction = "cw", color = 'snow') +
+    scale_mag(max = 0.15, name = "", max_size = 0.7)+
+    
+    scale_fill_viridis_c(name = "Velocity\n(km/hr)",#colours = cpal, 
+                         alpha = 0.9,
+                         # limits = c(0, 0.25), # m/s
+                         # breaks = seq(0, 0.2, 0.05)) +
+                         limits = c(0, 1.2), # km/hr
+                         breaks = seq(0, 1.2, 0.2)) +
+    scale_alpha(guide = "none") +
+    
+    
+    geom_point(data=turtles_df_hauoli %>% 
+                   mutate(date = as.Date(date)) %>%
+                   mutate(lon = make180(lon)),
+               aes(x=lon,y=lat), color = "gray90",
+               # fill = "#2a9d8f", shape = 21,
+               fill = "orange", shape = 21,
+               stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size) +
+    
+    
+    # release location
+    geom_point(data=release_loc, aes(x=make180(lon), y=lat), fill = "black",
+               color = "black", stroke = 1, shape = 4, size = 7.5) +
+    
+    
+    labs(x = "\n \n Longitude \n", y = "\n \n Latitude \n \n ") +
+    # coord_sf(ylim = c(35, 41), xlim =  c(-159, -141), expand = FALSE, crs = st_crs(4326)) +
+    coord_sf(ylim = c(37.5, 39.5), xlim =  c(-148, -144), expand = FALSE, crs = st_crs(4326)) +
+    
+    theme_bw()+
+    theme(axis.text = element_text(size = 14, colour = 1),
+          legend.text = element_text(size = 14, colour = 1), 
+          legend.title = element_text(size = 14, colour = 1)#,
+          # legend.position = c(.12,.17),
+          # legend.background = element_rect(colour = 1, fill = "white")
+    ) +
+    guides(fill = guide_colourbar(
+        barheight = plot_params$barheight,
+        ticks = TRUE)
+    ) + 
+    # facet_wrap(~date) +
+    NULL
+
+
+## animate ---
+title_eov <- 'surface currents'
+subtitle_text_col <- 'gray8'
+    caption_iso <- '' #'The orange circle is the current date-location. The darker circles are the previous locations. ' #The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
+    eov_source <- 'Surface velocity and vectors (white arrows) are calculated from Near Real-Time Geostrophic Current (u, v) \n Daily, 0.2 degrees spatial resolution, NOAA CoastWatch'
+    
+    
+    
+    anim_trial_zoom <- gg_currents_zoom +     
+        labs(title = str_c("STRETCH Daily turtle movements of Turtle Hau'oli (#17) with ", title_eov),
+             subtitle = "Date : {frame_time}",
+             caption = str_c("\n \n Raw tracking data from ARGOS averaged to 1 daily location (orange circles). ", caption_iso, "Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
+        # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
+        theme(
+            # element_text(size=p_plot_text_size),
+            # plot.title = element_text(size=plot_params$title_size, face="bold", margin=margin(t=20,b=0), hjust=0.03),
+            # plot.subtitle = element_text(size = plot_params$subtitle_size, face="bold", margin=margin(t=30,b=-30), hjust=0.025, color=subtitle_text_col),
+            plot.title = element_text(size=plot_params$title_size, face="bold"), #, margin=margin(t=20,b=0), hjust=0.03),
+            plot.subtitle = element_text(size = plot_params$subtitle_size, face="bold", color=subtitle_text_col), #, margin=margin(t=30,b=-30), hjust=0.025),
+            
+            plot.caption = element_text(size=plot_params$caption_size),
+            plot.margin = unit(c(0.75, 0, 0.5, 0), "cm")) +
+        guides(fill = guide_colourbar(
+            barheight = plot_params$barheight
+        )) +
+        transition_time(date) +
+        ease_aes("linear") +
+        
+        shadow_wake(wake_length=0.5, alpha = 0.2, wrap=FALSE,
+                    falloff = 'sine-in', exclude_phase = 'enter', size=0.75,
+                    exclude_layer = c(1,2,length(daily_dates))
+        ) +
+        enter_fade() +
+        exit_disappear() +  
+        
+        NULL
+    
+    gganimate::animate(anim_trial_zoom, nframes = length(daily_dates), fps =2, 
+                       # width = 1460, height = 720, res = 104,
+                       width = 1640, height = 900, res = 104,
+                       renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_full_contours_v3Aug_interp_kmh_zoom_v2.mp4')))
+    
+    
+
+# animate(wind.vector)

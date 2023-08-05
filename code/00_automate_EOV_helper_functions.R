@@ -26,7 +26,7 @@ getNCDF <- function(url, eov, varname, dataset_ID, bbox, dt, ncpath, alt=NULL){
 
     if(dataset_ID == "nesdisVHNnoaaSNPPnoaa20NRTchlaGapfilledDaily"){
         filenm <- filenm %>%
-            str_sub(.,22)
+            str_sub(.,23)
     } else {
         filenm <- filenm
     }
@@ -412,7 +412,7 @@ prep_uv_geostrophic <- function(ncIn){
     uv_dates <- unique(uv_df$date)
     
     for(i in 1:length(uv_dates)){
-    
+        
         date_i <- uv_dates[i] # hold onto unique date. will need to add as col at end of ea loop
         
         drifter.split.sf = drifter.split %>% 
@@ -504,5 +504,5 @@ prep_uv_geostrophic <- function(ncIn){
     rm(uv.se_w_date)
     } # end for loop
     
-    return(uv.se)
+    return( ret_uv.se )
 }

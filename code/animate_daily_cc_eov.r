@@ -72,6 +72,7 @@ raw_data <- rbindlist(lapply(files, fread)) %>%
            date = 5
     ) %>%
     mutate(date = as.POSIXct(date, format= "%m/%d/%Y %H:%M:%S", tz="UTC")) %>%
+    filter(lat > 0) %>%
     filter(date >= '2023-07-11 04:30:00')
 
 head(raw_data)
@@ -90,9 +91,9 @@ daily_avg_data <- raw_data %>%
 params <-list()
 
 # Set param to run
-params$eov = 'sst'
+# params$eov = 'sst'
 # params$eov = 'ssta'
-# params$eov = 'chla'
+params$eov = 'chla'
 
 if(params$eov == 'sst'){
     params$nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/deploy_reports"
@@ -370,7 +371,7 @@ if(save_ext == 'mp4'){
 gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2, 
                    # width = 1460, height = 720, res = 104,
                    width = 1640, height = 900, res = 104,
-                   renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_full_contours_v3.mp4')))
+                   renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_full_contours_v1Aug.mp4')))
 }
 
 
@@ -496,11 +497,16 @@ gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2,
 #' 
 ## Save as GIF
 if(save_ext == 'gif'){
-        gganimate::animate(anim_trial + theme(
+    if(params$eov == 'currents'){
+        anim_trial <- anim_trial + theme(
             axis.text.x = element_text(size=(plot_params$plot_text_size - 2)),
             axis.text.y = element_text(size=(plot_params$plot_text_size - 2)),
             legend.title=element_text(size=(plot_params$plot_text_size - 2))
-        ), 
+        )
+    } else {
+        anim_trial <- anim_trial
+    }
+    gganimate::animate(anim_trial, 
         nframes = length(daily_dates), fps =2,
                    # detail = 5,
                    # height = 4, #width = 3000,
@@ -511,5 +517,5 @@ if(save_ext == 'gif'){
 
 anim_save(animation = last_animation(),
           fps =2,
-          nframes =  length(daily_dates),str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_v4gif.gif'))
+          nframes =  length(daily_dates),str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_v1Aug_gif.gif'))
 } 

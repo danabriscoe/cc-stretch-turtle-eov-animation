@@ -9,7 +9,7 @@ render_ncdfs = function(node, url, eov, varname,
                         dataset_ID, enddate, startdate, timestep, alt,
                         nc_path, bbox) {
     rmarkdown::render(
-        "../code/01_get_ncdf.Rmd",
+        "code/01_get_ncdf.Rmd",
         # "code/01_get_ncdf.Rmd",
         params = list(node = node, url = url, eov=eov, varname=varname,
                       dataset_ID = dataset_ID, enddate = enddate, startdate = startdate,  alt = alt,

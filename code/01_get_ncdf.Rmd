@@ -5,10 +5,10 @@ date: '`r Sys.Date()`'
 output: html_document
 params:
   node: "swfsc" 
-  url: "https://pae-paha.pacioos.hawaii.edu/erddap/griddap/"
-  eov: "ssta"
-  varname: "CRW_SSTANOMALY"
-  dataset_ID: "dhw_5km"
+  url: "https://coastwatch.pfeg.noaa.gov/erddap/griddap/"
+  eov: "chla"
+  varname: "chlor_a"
+  dataset_ID: "nesdisVHNnoaaSNPPnoaa20NRTchlaGapfilledDaily"
   enddate: !r Sys.Date() - 2
   startdate: !r as.Date('2023-07-10')
   timestep: "day"
