@@ -27,38 +27,6 @@ library(gifski)
 ## ---- source functions-----------------------------------------------------------------------------------------------------
 source('code/00_automate_EOV_helper_functions.R')
 
-
-## ----temp-funcs-cell----------------------------------------------------------------------------------------------------
-## Funtions ----
-make180 <- function(lon){
-    isnot360<-min(lon)<0
-    if (!isnot360) {
-        ind<-which(lon>180)
-        lon[ind]<-lon[ind]-360
-    }
-    return(lon)
-}
-
-make360 <- function(lon){
-    isnot360<-min(lon)<0
-    if(isnot360){
-        ind<-which(lon<0)
-        lon[ind]<-lon[ind]+360
-    }  
-    return(lon)
-}
-
-# parseDT
-parseDT <- function(x, idx, start, stop, format){
-    ret <- fs::path_file(x) %>%
-        substr(., start=start, stop=stop) %>%
-        as.character(strptime(.,format=format,tz='UTC'))
-    return(ret)
-}
-
-
-
-#' 
 ## ----load-turtle-data---------------------------------------------------------------------------------------------------
 ## Pull Raw Tracking Data -----
 files <- list.files('~/Downloads/batch/', pattern = "All.csv", recursive=T, full.names=T)
@@ -94,6 +62,7 @@ params <-list()
 # params$eov = 'sst'
 # params$eov = 'ssta'
 params$eov = 'chla'
+# params$eov = 'sla_uv'
 
 if(params$eov == 'sst'){
     params$nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/deploy_reports"
@@ -104,7 +73,10 @@ if(params$eov == 'sst'){
 } else if (params$eov == "chla"){
     params$nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
     params$varname <- params$eov  # special case. filename uses 'chla' and not 'chlor_a', which is the varname
-}
+} #else if (params$eov == "sla_uv"){
+    # params$nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
+    # params$varname <- c('sla', 'ugos', 'vgos')  # special case. multiple vars inside ncdf
+# }
 
 # get ncdf list
 ncs <- list.files(params$nc_path, pattern =  params$varname, full.names=T)

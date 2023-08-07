@@ -1268,3 +1268,97 @@ subtitle_text_col <- 'gray8'
     
 
 # animate(wind.vector)
+    
+    
+    
+## copernicus api ----
+## Load libraries ----
+pkgs <- c(
+    "reticulate",
+    "lubridate",
+    "tidyverse",
+    "config"
+)
+
+lapply(pkgs, library, character.only = TRUE)
+
+# must for reticulate to work
+os <- import("os")
+os$listdir(".")
+# py_install(c("motuclient")) # note: motuclient==1.8.4 _MUST_ be installed (via requirements.txt) for system(command) to work!
+import("motuclient")
+# glorys_key <- config::get(file = "./utils/glorys_config.yml")  
+glorys_key <- config::get(file = "~/github/catalyst-bHABs/utils/glorys_config.yml")  
+
+
+if(params$eov == 'sla_uv'){
+    varnames = params_df$varname
+    params_df <- params_df %>% slice(1)
+}
+
+dates <- getDateRange(startdate = params$startdate,enddate = params$enddate, unit=params$timestep) %>%
+    str_c(., params_df$date_string, sep="")
+
+i=24
+for (i in 1:(length(glorys_dates))) {
+    getNCDF_sla(
+        url = 'https://nrt.cmems-du.eu/motu-web/Motu' #params_df$url,
+        varnames = varnames,
+        # location = "japan",
+        bbox = params$bbox,
+        dt = dates[i],
+        # depths = tibble(min = 0.494, max = 155.8507),
+        ncpath = params$nc_path
+        ncpath = '~/Downloads'
+    )
+}
+
+getNCDF_sla <- function(url, varnames, 
+                               # location, 
+                               bbox, dt = dates, 
+                               # depths, 
+                               ncpath) {
+    startdate <- as.character(dt[i])
+    
+    os$chdir(ncpath)
+    os$getcwd()
+    
+    filenm <- str_c("nrt-global-merged-allsat-phy_", params$eov,"_" ,as.Date(dates[i]), ".nc", sep = "")
+    
+    if (!file.exists(str_c(ncpath, "/", filenm))) {
+        command <- str_c("python -m motuclient --motu ", url,
+                         " --service-id SEALEVEL_GLO_PHY_L4_NRT_OBSERVATIONS_008_046-TDS", 
+                         " --product-id dataset-duacs-nrt-global-merged-allsat-phy-l4",
+                         " --longitude-min ", bbox$xmin, " --longitude-max ", bbox$xmax,
+                         " --latitude-min ", bbox$ymin, " --latitude-max ", bbox$ymax,
+                         " --date-min ", startdate, " --date-max ", startdate,
+                         # " --depth-min ", depths$min, " --depth-max ", depths$max,
+                         " --variable ", varnames[1], " --variable ", varnames[2], " --variable ", varnames[3],
+                         " --out-dir ", ".", "/", " --out-name glorys_global_multiyear_phy_", as.Date(dates[i]), ".nc --user ", glorys_key$user, " --pwd ", glorys_key$pwd,
+                         sep = ""
+        )
+        return(system(command))
+    } else {
+        message("data already downloaded! \n Located at:\n", str_c(ncpath, filenm, sep = "/"))
+    }
+    
+    os$chdir('~/github/cc-stretch-turtle-eov-animation/code')
+}
+
+x = '/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac/nrt-global-merged-allsat-phy_sla_uv_2023-08-04.nc'
+ras = raster::stack(x, varname='sla')
+plot(ras, col=rainbow(100))
+
+
+
+library(ggplot2)
+g <- ggplot(seals, aes(long, lat)) +
+    geom_vector(aes(dx = delta_long, dy = delta_lat), skip = 2)
+
+g + scale_mag("Seals velocity")
+
+g + scale_mag("Seals velocity", max = 1)
+
+g + scale_mag("Seals velocity", max_size = 2)
+g + scale_mag("Seals velocity", default_unit = "mm")
+

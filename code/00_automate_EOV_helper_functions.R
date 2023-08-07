@@ -413,7 +413,7 @@ get_static_plot <- function(eov, eov_df, turtles_df, e, release_loc, cpal = cpal
     return(gg)
 }
 
-prep_uv_geostrophic <- function(ncIn){
+prep_uv_geostrophic <- function(x = ncIn){
     require(metR)
     require(tidyverse)
     require(lubridate)
@@ -422,8 +422,48 @@ prep_uv_geostrophic <- function(ncIn){
     require(sf)
 
     
-    ugos_ras <- raster::brick(ncIn, varname='u_current') # ssha vectors 
-    vgos_ras <- raster::brick(ncIn, varname='v_current') # ssha vectors 
+    # ugos_ras <- raster::brick(ncIn, varname='u_current') # ssha vectors 
+    # vgos_ras <- raster::brick(ncIn, varname='v_current') # ssha vectors 
+    ugos_ras <- suppressWarnings(raster::stack(x, varname='ugos')) # ssha vectors 
+    vgos_ras <- suppressWarnings(raster::stack(x, varname='vgos')) # ssha vectors 
+    
+    nc_dates <- x %>% 
+        map(~parseDT(., idx = 6, start=37, stop = 46, format="%Y-%m-%d")) %>%
+        unlist() %>% as.Date() #%>%
+    
+    names(ugos_ras) <- nc_dates
+    names(vgos_ras) <- nc_dates
+    
+    # uras_df <- ugos_ras %>%
+    #     rasterToPoints %>%
+    #     as.data.frame() %>%
+    #     `colnames<-`(c("x", "y", names(ugos_ras))) %>%
+    #     pivot_longer(cols = starts_with("X20"),
+    #                  names_to = "layer",
+    #                  values_to = "u") %>%
+    #     mutate(layer = substr(layer, 2, 14)) %>%
+    #     mutate(date = as.POSIXct(layer, "%Y.%m.%d", tz = "UTC")
+    #     )
+    # 
+    # vras_df <- vgos_ras %>%
+    #     rasterToPoints %>%
+    #     as.data.frame() %>%
+    #     `colnames<-`(c("x", "y", names(vgos_ras))) %>%
+    #     pivot_longer(cols = starts_with("X20"),
+    #                  names_to = "layer",
+    #                  values_to = "v") %>%
+    #     mutate(layer = substr(layer, 2, 14)) %>%
+    #     mutate(date = as.POSIXct(layer, "%Y.%m.%d", tz = "UTC")
+    #     )
+    # 
+    # 
+    # uv_df <- uras_df %>% left_join(., vras_df, by=c("x", "y", "date")) %>%
+    #     dplyr::select(-c("layer.x", "layer.y")) %>%
+    #     relocate(date, .after = y) %>%
+    #     `colnames<-`(c("lon", "lat", "date", "u", "v")) %>%
+    #     mutate(date = as.POSIXct(date, "%Y.%m.%d", tz = "UTC"))
+    # 
+    # head(uv_df)
     
     uras_df <- ugos_ras %>%
         rasterToPoints %>%
@@ -433,6 +473,7 @@ prep_uv_geostrophic <- function(ncIn){
                      names_to = "layer",
                      values_to = "u") %>%
         mutate(layer = substr(layer, 2, 14)) %>%
+        mutate(x = make360(x)) %>%
         mutate(date = as.POSIXct(layer, "%Y.%m.%d", tz = "UTC")
         )
     
@@ -444,6 +485,7 @@ prep_uv_geostrophic <- function(ncIn){
                      names_to = "layer",
                      values_to = "v") %>%
         mutate(layer = substr(layer, 2, 14)) %>%
+        mutate(x = make360(x)) %>%
         mutate(date = as.POSIXct(layer, "%Y.%m.%d", tz = "UTC")
         )
     
@@ -452,108 +494,132 @@ prep_uv_geostrophic <- function(ncIn){
         dplyr::select(-c("layer.x", "layer.y")) %>%
         relocate(date, .after = y) %>%
         `colnames<-`(c("lon", "lat", "date", "u", "v")) %>%
-        mutate(date = as.POSIXct(date, "%Y.%m.%d", tz = "UTC"))
+        mutate(date = as.POSIXct(date, "%Y.%m.%d")) %>%
+        mutate(velocity = sqrt(u^2 + v^2))
     
     head(uv_df)
     
-    # rename for consistency
-    drifter.split <- uv_df  
+    #
+    wind = uv_df %>%
+        mutate(day = yday(date) %>%as.integer(), 
+               week = week(date) %>%as.integer(),  month = month(date) %>%as.integer(), 
+               year = year(date) %>%as.integer()) %>%
+        dplyr::select(date,day, week, month, year,lon,lat, u,
+                      v, velocity ) %>%
+        mutate(date = as.Date(date))
     
-    ret_uv.se <- data.frame()
-    uv_dates <- unique(uv_df$date)
+    # wind %>% head()        
     
-    for(i in 1:length(uv_dates)){
-        
-        date_i <- uv_dates[i] # hold onto unique date. will need to add as col at end of ea loop
-        
-        drifter.split.sf = drifter.split %>% 
-            filter(date == uv_dates[i]) %>%
-            st_as_sf(coords = c("lon", "lat")) %>%
-            st_set_crs(4326)
-    
-    # drifter.split.sf = drifter.split %>% 
-    #     st_as_sf(coords = c("lon", "lat")) %>%
-    #     st_set_crs(4326)
-    
-    drifter.grid = drifter.split.sf %>% 
-        st_make_grid(n = c(70,60))%>%
-        st_sf()
-    
-    drifter.split.sf.se = drifter.split.sf #%>% filter(season=="SE")
-    
-    drifter.gridded = drifter.grid %>% 
-        mutate(id = 1:n(), contained = lapply(st_contains(st_sf(geometry),drifter.split.sf.se),identity),
-               obs = sapply(contained, length),
-               u = sapply(contained, function(x) {median(drifter.split.sf.se[x,]$u, na.rm = TRUE)}),
-               v = sapply(contained, function(x) {median(drifter.split.sf.se[x,]$v, na.rm = TRUE)})) 
+    wind.date = wind %>% 
+        group_by(lon, lat, date) %>% 
+        summarise(u = median(u, na.rm = TRUE),
+                  v = median(v, na.rm = TRUE), 
+                  velocity = median(velocity, na.rm = TRUE)) #%>%
+        # mutate(velocity_kmh = round(velocity * (3.6),2)) # aka 18/5 = 3.6
     
     
-    drifter.gridded = drifter.gridded %>% 
-        dplyr::select(obs, u, v) %>% na.omit()
+    # wind.date
+    return(wind)
     
-    ## obtain the centroid coordinates from the grid as table
-    coordinates = drifter.gridded %>% 
-        st_centroid() %>% 
-        st_coordinates() %>% 
-        as_tibble() %>% 
-        rename(x = X, y = Y)
+    # # rename for consistency
+    # drifter.split <- uv_df  
+    # 
+    # ret_uv.se <- data.frame()
+    # uv_dates <- unique(uv_df$date)
+    # 
+    # for(i in 1:length(uv_dates)){
+    #     
+    #     date_i <- uv_dates[i] # hold onto unique date. will need to add as col at end of ea loop
+    #     
+    #     drifter.split.sf = drifter.split %>% 
+    #         filter(date == uv_dates[i]) %>%
+    #         st_as_sf(coords = c("lon", "lat")) %>%
+    #         st_set_crs(4326)
+    # 
+    # # drifter.split.sf = drifter.split %>% 
+    # #     st_as_sf(coords = c("lon", "lat")) %>%
+    # #     st_set_crs(4326)
+    # 
+    # drifter.grid = drifter.split.sf %>% 
+    #     st_make_grid(n = c(70,60))%>%
+    #     st_sf()
+    # 
+    # drifter.split.sf.se = drifter.split.sf #%>% filter(season=="SE")
+    # 
+    # drifter.gridded = drifter.grid %>% 
+    #     mutate(id = 1:n(), contained = lapply(st_contains(st_sf(geometry),drifter.split.sf.se),identity),
+    #            obs = sapply(contained, length),
+    #            u = sapply(contained, function(x) {median(drifter.split.sf.se[x,]$u, na.rm = TRUE)}),
+    #            v = sapply(contained, function(x) {median(drifter.split.sf.se[x,]$v, na.rm = TRUE)})) 
+    # 
+    # 
+    # drifter.gridded = drifter.gridded %>% 
+    #     dplyr::select(obs, u, v) %>% na.omit()
+    # 
+    # ## obtain the centroid coordinates from the grid as table
+    # coordinates = drifter.gridded %>% 
+    #     st_centroid() %>% 
+    #     st_coordinates() %>% 
+    #     as_tibble() %>% 
+    #     rename(x = X, y = Y)
+    # 
+    # ## remove the geometry from the simple feature of gridded drifter dataset
+    # st_geometry(drifter.gridded) = NULL
+    # 
+    # ## stitch together the extracted coordinates and drifter information int a single table for SE monsoon season
+    # current.gridded.se = coordinates %>% 
+    #     bind_cols(drifter.gridded) #%>% 
+    # # mutate(season = "SE")
+    # 
+    # # ## bind the gridded table for SE and NE
+    # # ## Note that similar NE follow similar procedure, hence not shown in the post
+    # # drifter.current.gridded = current.gridded.ne %>% 
+    # #     bind_rows(current.gridded.se)
+    # drifter.current.gridded = current.gridded.se
+    # 
+    # ## select grids for SE season only
+    # drf.se = drifter.current.gridded #%>%
+    # # filter(season == "SE")
+    # 
+    # ## interpolate the U component
+    # u.se = interpBarnes(x = drf.se$x, y = drf.se$y, z = drf.se$u)
+    # 
+    # ## obtain dimension that determine the width (ncol) and length (nrow) for tranforming wide into long format table
+    # dimension = data.frame(lon = u.se$xg, u.se$zg) %>% dim()
+    # 
+    # ## make a U component data table from interpolated matrix
+    # u.tb = data.frame(lon = u.se$xg, 
+    #                   u.se$zg) %>% 
+    #     gather(key = "lata", value = "u", 2:dimension[2]) %>% 
+    #     mutate(lat = rep(u.se$yg, each = dimension[1])) %>% 
+    #     dplyr::select(lon,lat, u) %>% as.tibble()
+    # 
+    # ## interpolate the V component
+    # v.se = interpBarnes(x = drf.se$x, 
+    #                     y = drf.se$y, 
+    #                     z = drf.se$v)
+    # 
+    # ## make the V component data table from interpolated matrix
+    # v.tb = data.frame(lon = v.se$xg, v.se$zg) %>% 
+    #     gather(key = "lata", value = "v", 2:dimension[2]) %>% 
+    #     mutate(lat = rep(v.se$yg, each = dimension[1])) %>% 
+    #     dplyr::select(lon,lat, v) %>% 
+    #     as.tibble()
+    # 
+    # ## stitch now the V component intot the U data table and compute the velocity
+    # uv.se = u.tb %>% 
+    #     bind_cols(v.tb %>% 
+    #                   dplyr::select(v)) %>% 
+    #     mutate(vel = sqrt(u^2+v^2))
+    # 
+    # uv.se_w_date <- uv.se %>%
+    #     mutate(date = date_i)
+    # 
+    # ret_uv.se <- rbind(ret_uv.se, uv.se_w_date)
+    # print(unique(ret_uv.se$date))
+    # rm(uv.se_w_date)
+    # } # end for loop
+    # 
+    # return( ret_uv.se )
     
-    ## remove the geometry from the simple feature of gridded drifter dataset
-    st_geometry(drifter.gridded) = NULL
-    
-    ## stitch together the extracted coordinates and drifter information int a single table for SE monsoon season
-    current.gridded.se = coordinates %>% 
-        bind_cols(drifter.gridded) #%>% 
-    # mutate(season = "SE")
-    
-    # ## bind the gridded table for SE and NE
-    # ## Note that similar NE follow similar procedure, hence not shown in the post
-    # drifter.current.gridded = current.gridded.ne %>% 
-    #     bind_rows(current.gridded.se)
-    drifter.current.gridded = current.gridded.se
-    
-    ## select grids for SE season only
-    drf.se = drifter.current.gridded #%>%
-    # filter(season == "SE")
-    
-    ## interpolate the U component
-    u.se = interpBarnes(x = drf.se$x, y = drf.se$y, z = drf.se$u)
-    
-    ## obtain dimension that determine the width (ncol) and length (nrow) for tranforming wide into long format table
-    dimension = data.frame(lon = u.se$xg, u.se$zg) %>% dim()
-    
-    ## make a U component data table from interpolated matrix
-    u.tb = data.frame(lon = u.se$xg, 
-                      u.se$zg) %>% 
-        gather(key = "lata", value = "u", 2:dimension[2]) %>% 
-        mutate(lat = rep(u.se$yg, each = dimension[1])) %>% 
-        dplyr::select(lon,lat, u) %>% as.tibble()
-    
-    ## interpolate the V component
-    v.se = interpBarnes(x = drf.se$x, 
-                        y = drf.se$y, 
-                        z = drf.se$v)
-    
-    ## make the V component data table from interpolated matrix
-    v.tb = data.frame(lon = v.se$xg, v.se$zg) %>% 
-        gather(key = "lata", value = "v", 2:dimension[2]) %>% 
-        mutate(lat = rep(v.se$yg, each = dimension[1])) %>% 
-        dplyr::select(lon,lat, v) %>% 
-        as.tibble()
-    
-    ## stitch now the V component intot the U data table and compute the velocity
-    uv.se = u.tb %>% 
-        bind_cols(v.tb %>% 
-                      dplyr::select(v)) %>% 
-        mutate(vel = sqrt(u^2+v^2))
-    
-    uv.se_w_date <- uv.se %>%
-        mutate(date = date_i)
-    
-    ret_uv.se <- rbind(ret_uv.se, uv.se_w_date)
-    print(unique(ret_uv.se$date))
-    rm(uv.se_w_date)
-    } # end for loop
-    
-    return( ret_uv.se )
 }
