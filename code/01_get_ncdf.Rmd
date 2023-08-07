@@ -4,18 +4,12 @@ author: "Dana K Briscoe"
 date: '`r Sys.Date()`'
 output: html_document
 params:
-  node: "swfsc" 
-  url: "https://coastwatch.pfeg.noaa.gov/erddap/griddap/"
-  eov: "chla"
-  varname: "chlor_a"
-  dataset_ID: "nesdisVHNnoaaSNPPnoaa20NRTchlaGapfilledDaily"
+  eov: "sla_uv"
   enddate: !r Sys.Date() - 2
   startdate: !r as.Date('2023-07-10')
   timestep: "day"
-  alt: "NULL"
   nc_path: "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
   bbox: !r tibble::tibble(ymin=20, ymax=50,xmin=-180, xmax=-110)
-
 ---
 
 ```{r setup, include=FALSE}
@@ -48,62 +42,88 @@ source('00_automate_EOV_helper_functions.R')
 
 ```
 
-```{r set-dateRange}
-dates <- getDateRange(startdate = params$startdate,enddate = params$enddate, unit=params$timestep) 
+```{r set-dateRange-old}
+# dates <- getDateRange(startdate = params$startdate,enddate = params$enddate, unit=params$timestep) 
 ```
 
 ```{r set-param-datasetID}
-if(params$eov == "sst"){
-    node <- 'pacioos'
-    url <- 'https://pae-paha.pacioos.hawaii.edu/erddap/griddap/'
-    varname  <- "CRW_SST"
-    dataset_ID <- "dhw_5km"
-    
-    dates <- dates %>%
-    as.character() %>%
-    str_c(., 'T12:00:00Z', sep=" ")
-    # params$bbox <- params$bbox %>% mutate(xmin = make360(xmin), xmax = make360(xmax)) %>% as.data.frame()
-    alt = NULL
-} else if(params$eov == "ssta"){ 
-    node <- 'pacioos'
-    url <- 'https://pae-paha.pacioos.hawaii.edu/erddap/griddap/'
-    varname  <- "CRW_SSTANOMALY"
-    dataset_ID <- "dhw_5km"
-    
-    dates <- dates %>%
-    as.character() %>%
-    str_c(., 'T12:00:00Z', sep="")
-    # params$bbox <- params$bbox %>% mutate(xmin = make360(xmin), xmax = make360(xmax)) %>% as.data.frame()
-    alt = NULL
-} else if(params$eov == "chla"){
-    node <- 'swfsc'
-    url <- 'https://coastwatch.pfeg.noaa.gov/erddap/griddap/'
-    varname  <- "chlor_a"
-    dataset_ID <- "nesdisVHNnoaaSNPPnoaa20NRTchlaGapfilledDaily"
-    
-    dates <- dates[dates <= (Sys.Date() - 4)] # fyi, latest product is 4 days behind current
-    as.character() %>%
-    str_c(., 'T12:00:00Z', sep="")
-    # params$bbox <- params$bbox %>% mutate(xmin = make180(xmin), xmax = make180(xmax)) 
-    alt = 0
-    
+# if(params$eov == "sst"){
+#     node <- 'pacioos'
+#     url <- 'https://pae-paha.pacioos.hawaii.edu/erddap/griddap/'
+#     varname  <- "CRW_SST"
+#     dataset_ID <- "dhw_5km"
+#     
+#     dates <- dates %>%
+#     as.character() %>%
+#     str_c(., 'T12:00:00Z', sep=" ")
+#     # params$bbox <- params$bbox %>% mutate(xmin = make360(xmin), xmax = make360(xmax)) %>% as.data.frame()
+#     alt = NULL
+# } else if(params$eov == "ssta"){ 
+#     node <- 'pacioos'
+#     url <- 'https://pae-paha.pacioos.hawaii.edu/erddap/griddap/'
+#     varname  <- "CRW_SSTANOMALY"
+#     dataset_ID <- "dhw_5km"
+#     
+#     dates <- dates %>%
+#     as.character() %>%
+#     str_c(., 'T12:00:00Z', sep="")
+#     # params$bbox <- params$bbox %>% mutate(xmin = make360(xmin), xmax = make360(xmax)) %>% as.data.frame()
+#     alt = NULL
+# } else if(params$eov == "chla"){
+#     node <- 'swfsc'
+#     url <- 'https://coastwatch.pfeg.noaa.gov/erddap/griddap/'
+#     varname  <- "chlor_a"
+#     dataset_ID <- "nesdisVHNnoaaSNPPnoaa20NRTchlaGapfilledDaily"
+#     
+#     dates <- dates[dates <= (Sys.Date() - 4)] # fyi, latest product is 4 days behind current
+#     as.character() %>%
+#     str_c(., 'T12:00:00Z', sep="")
+#     # params$bbox <- params$bbox %>% mutate(xmin = make180(xmin), xmax = make180(xmax)) 
+#     alt = 0
+# } 
+```
 
+```{r load-ncdf-list}
+eov_list <- jsonlite::read_json("../ncdf_list.json") %>%
+                data.table::rbindlist(., fill=TRUE) %>% 
+                # unnest(eov) %>%  
+                purrr::pmap_dfr(data.frame)  # deals with remaining cols in list form
+
+
+```
+
+
+```{r}
+params_df <- eov_list[eov_list$eov == params$eov,]
+```
+
+```{r}
+if(params$eov == 'sla_uv'){
+    varnames = params_df$varname
+    params_df <- params_df %>% slice(1)
 }
 ```
 
-```{r get-ncdfs}
+
+```{r set-dateRange}
+dates <- getDateRange(startdate = params$startdate,enddate = params$enddate, unit=params$timestep) %>%
+    str_c(., unique(params_df$date_string), sep="")
+```
+
+
+```{r get-ncdfs, eval=params$eov!='sla_uv'}
 
 ## dkb note -- add alt string [(0):1:(0)] between long and lats (see scratch)
 for (i in 1:length(dates)) {
   tryCatch({
     getNCDF(
-    url = params$url,
-    eov = params$eov,
-    varname = params$varname,
-    dataset_ID = params$dataset_ID, 
+    url = params_df$url,
+    eov = params_df$eov,
+    varname = params_df$varname,
+    dataset_ID = params_df$dataset_ID, 
     bbox = params$bbox, 
     dt = dates[i], 
-    alt = alt,
+    alt = params_df$alt,
     ncpath = params$nc_path
   )
   }, error = function(e){
@@ -114,4 +134,23 @@ for (i in 1:length(dates)) {
 }
 ```
 
+```{r get-ncdfs-sla, eval=params$eov=='sla_uv'}
+
+# run
+for (i in 1:length(dates)) {
+  tryCatch({
+    getNCDF_sla(
+        url = params_df$url,
+        varnames = varnames,
+        bbox = params$bbox,
+        dt = dates[i],
+        ncpath = params$nc_path
+    )
+  }, error = function(e){
+      message('Caught an error!')
+      print(e)
+  }
+  )
+}
+```
 

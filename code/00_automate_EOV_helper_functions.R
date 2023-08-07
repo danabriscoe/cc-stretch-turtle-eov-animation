@@ -17,7 +17,7 @@ getDateRange <- function(startdate, enddate, unit = "month", format = "%Y/%mm/%d
 }
 
 # get ncdf
-getNCDF <- function(url, eov, varname, dataset_ID, bbox, dt, ncpath, alt=NULL){
+getNCDF <- function(url, eov, varname, dataset_ID, bbox, dt, ncpath, alt=NA){
     
     dt <- as.character(dt)
     
@@ -34,7 +34,7 @@ getNCDF <- function(url, eov, varname, dataset_ID, bbox, dt, ncpath, alt=NULL){
     
     # get netcdf
     if(!file.exists(paste0(ncpath, "/", filenm))){
-        if(is.null(alt)){
+        if(is.na(alt)){
             url_base <- paste(url,
                           dataset_ID,
                           ".nc?",
@@ -117,6 +117,57 @@ getNCDF <- function(url, eov, varname, dataset_ID, bbox, dt, ncpath, alt=NULL){
 #     
 #     return(x_df_long)
 # }
+
+getNCDF_sla <- function(url, varnames, 
+                        # location, 
+                        bbox, dt = dates, 
+                        # depths, 
+                        ncpath) {
+    
+    pkgs <- c(
+        "reticulate",
+        "lubridate",
+        "tidyverse",
+        "config"
+    )
+    
+    lapply(pkgs, library, character.only = TRUE)
+    
+    # must for reticulate to work
+    os <- import("os")
+    os$listdir(".")
+    # py_install(c("motuclient")) # note: motuclient==1.8.4 _MUST_ be installed (via requirements.txt) for system(command) to work!
+    import("motuclient")
+    # glorys_key <- config::get(file = "./utils/glorys_config.yml")  
+    glorys_key <- config::get(file = "~/github/catalyst-bHABs/utils/glorys_config.yml")  
+    
+    
+    startdate <- as.character(dt)
+    
+    os$chdir(ncpath)
+    os$getcwd()
+    
+    filenm <- str_c("nrt-global-merged-allsat-phy_", params$eov,"_" ,as.Date(dt), ".nc", sep = "")
+    
+    if (!file.exists(str_c(ncpath, "/", filenm))) {
+        command <- str_c("python -m motuclient --motu ", url,
+                         " --service-id SEALEVEL_GLO_PHY_L4_NRT_OBSERVATIONS_008_046-TDS", 
+                         " --product-id dataset-duacs-nrt-global-merged-allsat-phy-l4",
+                         " --longitude-min ", bbox$xmin, " --longitude-max ", bbox$xmax,
+                         " --latitude-min ", bbox$ymin, " --latitude-max ", bbox$ymax,
+                         " --date-min ", startdate, " --date-max ", startdate,
+                         # " --depth-min ", depths$min, " --depth-max ", depths$max,
+                         " --variable ", varnames[1], " --variable ", varnames[2], " --variable ", varnames[3],
+                         " --out-dir ", ".", "/", " --out-name ", filenm, " --user ", glorys_key$user, " --pwd ", glorys_key$pwd,
+                         sep = ""
+        )
+        return(system(command))
+    } else {
+        message("data already downloaded! \n Located at:\n", str_c(ncpath, filenm, sep = "/"))
+    }
+    
+    os$chdir('~/github/cc-stretch-turtle-eov-animation/code')
+}
 
 
 

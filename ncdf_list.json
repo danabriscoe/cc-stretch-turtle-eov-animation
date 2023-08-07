@@ -1,0 +1,43 @@
+[
+    {
+        "eov": "sst",
+        "timestep": "daily",
+        "varname":"CRW_SST",
+        "dataset_ID": "dhw_5km",
+        "date_string": " T12:00:00Z",
+        "alt": null,
+        "url": "https://pae-paha.pacioos.hawaii.edu/erddap/griddap/",
+        "node:": "pacioos"
+
+    },
+    {
+        "eov": "ssta",
+        "timestep": "daily",
+        "varname": "CRW_SSTANOMALY",
+        "dataset_ID": "dhw_5km",
+        "date_string": "T12:00:00Z",
+        "alt": null,
+        "url": "https://pae-paha.pacioos.hawaii.edu/erddap/griddap/",
+        "node:": "pacioos" 
+    },
+    {
+        "eov": "chla",
+        "timestep": "daily",
+        "varname": "chlor_a", 
+        "dataset_ID": "nesdisVHNnoaaSNPPnoaa20NRTchlaGapfilledDaily",
+        "date_string": "T12:00:00Z",
+        "alt": "0",
+        "url": "https://coastwatch.pfeg.noaa.gov/erddap/griddap/",
+        "node:": "westcoast"
+    },
+    {
+        "eov": "sla_uv",
+        "timestep": "daily",
+        "varname": ["sla", "ugos", "vgos"],
+        "dataset_ID": ["sla", "ugos", "vgos"],
+        "date_string":" 00:00:00",
+        "alt": null,
+        "url": "https://nrt.cmems-du.eu/motu-web/Motu",
+        "node": "copernicus"
+    }
+]
