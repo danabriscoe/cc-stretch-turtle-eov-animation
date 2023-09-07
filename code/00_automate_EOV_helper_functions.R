@@ -10,7 +10,7 @@
 
 # get date range
 getDateRange <- function(startdate, enddate, unit = "month", format = "%Y/%mm/%dd"){
-    
+    if(unit == 'daily'){unit <- 'day'}
     ret <- seq(as.Date(startdate), as.Date(enddate), by = unit,format = format)
     
     return(ret)
@@ -519,7 +519,7 @@ prep_uv_geostrophic <- function(x = ncIn){
     
     
     # wind.date
-    return(wind)
+    return(wind.date)
     
     # # rename for consistency
     # drifter.split <- uv_df  
