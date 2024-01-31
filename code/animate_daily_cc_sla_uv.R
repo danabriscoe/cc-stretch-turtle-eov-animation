@@ -76,6 +76,7 @@ fdates <- ncs %>%
     purrr::map_chr(~ pluck(., 4)) %>%
     substr(., start=1, stop=10)
 
+print(range(fdates))
 
 ## ----prep-turtle-sp-----------------------------------------------------------------------------------------------------
 ## turtles geo
@@ -129,7 +130,7 @@ eov_dates <- fdates[as.Date(unique(fdates)) > as.Date('2023-07-10')]
 # daily_dates <- c(deploy_date, tracking_dates)
 # daily_dates <- c(deploy_date, eov_dates)
 daily_dates <- intersect(as.character(tracking_dates), as.character(eov_dates)) 
-
+print(range(daily_dates))
 
 ncIn <- sapply(1:length(daily_dates), function(x) ncs[grepl(daily_dates[x],ncs)])
 
@@ -141,7 +142,7 @@ ras <- {suppressWarnings(raster::stack(ncIn, varname = params$varname[1]))}
 #         map(~parseDT(., idx = 6, start=37, stop = 46, format="%Y-%m-%d")) %>%
 #         unlist() %>% as.Date() #%>%
 # } 
-# names(ras) <- nc_dates
+names(ras) <- daily_dates
 
 
 #' 
@@ -178,10 +179,13 @@ if(params$eov == 'sla_uv'){
         mutate(date = as.Date(date)) #%>% filter(date == '2023-07-11')
 } 
 # # get uv vectors
-# ret_uv.se<- prep_uv_geostrophic(x = ncs)        
+wind.date <- prep_uv_geostrophic(x = ncIn)
 
-wind.date <- wind.date %>% filter(date > '2023-07-10')
-# 
+wind.date <- wind.date %>% filter(date > '2023-07-10')# %>%
+#     mutate(x = lon,
+#            y = lat,
+#            val = velocity)
+# # 
 # # rename for consistency
 # uv.se <- ret_uv.se %>%
 #     # uv.se <- uv.se %>% 
@@ -192,7 +196,7 @@ wind.date <- wind.date %>% filter(date > '2023-07-10')
 ## prep plot data
 # eov_df  = uv.se
 
-turtles_df = turtlesgeo %>% filter(date %in% daily_dates) 
+turtles_df = turtlesgeo %>% filter(date %in% as.Date(daily_dates)) 
 
 release_loc = data.frame(lat=39.315, lon=213.9333)
 
@@ -201,8 +205,24 @@ turtles_df_hauoli <- turtles_df %>% filter(id == '243194') #%>% filter(date > '2
 
 # 
 # turtles_df_hauoli <- turtles_df_hauoli %>% filter(date <= max(wind.date$date))
+save_ext <- 'mp4'
+if(save_ext == 'mp4'){
+    plot_params <- list(
+        turtle_pt_size = 3.25,
+        barheight = 21.5, #28.5, #38
+        plot_text_size = 14,
+        title_size = 17,
+        subtitle_size = 16,
+        caption_size = 14
+    )
+}
 
-# metR
+smooth_rainbow <- khroma::colour("smooth rainbow")
+limits <- c(-0.1, 0.275)
+cpal <- c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 0.05)), range = c(0, 0.9)))
+
+
+# metR -- ALL TRACKS ------------------------------------
 gg_currents <- 
     ggplot() +
     # geom_raster(data = wind.date, aes(x = lon, y = lat, fill = velocity), interpolate = TRUE) +
@@ -214,13 +234,20 @@ gg_currents <-
                       pivot = 0,preserve.dir = TRUE, direction = "cw", color = 'snow') +
     scale_mag(max = 0.25, name = "", max_size = 0.7)+
     
-    scale_fill_viridis_c(name = "SSH above \nsea level (m)\n",#colours = cpal, 
-                         alpha = 0.9,
-                         label = function(x) sprintf("%.2f", x),
-                         # limits = c(0, 0.25), # m/s
-                         # breaks = seq(0, 0.2, 0.05)) +
-                         limits = c(-0.1, 0.35), # km/hr
-                         breaks = seq(-0.1, 0.35, 0.05)) +
+    # scale_fill_viridis_c(name = "SSH above \nsea level (m)\n",#colours = cpal, 
+    #                      alpha = 0.9,
+    #                      label = function(x) sprintf("%.2f", x),
+    #                      # limits = c(0, 0.25), # m/s
+    #                      # breaks = seq(0, 0.2, 0.05)) +
+    #                      limits = c(-0.1, 0.35), # km/hr
+    #                      breaks = seq(-0.1, 0.35, 0.05)) +
+    scale_fill_gradientn(colours =
+                         cpal[1:length(cpal)],
+
+                         breaks=seq(-0.1, 0.35, 0.05), #seq(6,32,2),
+                         limits = c(-0.1, 0.35),
+                         na.value = 'snow',
+                         name = "SSH above \nsea level (m)\n") +
     scale_alpha(guide = "none") +
     
     
@@ -305,6 +332,7 @@ subtitle_text_col <- 'gray8'
     
     
     
+    
     ## ZOOMEDview -------------------------------------------------------------------------
     # metR
     gg_currents_zoom <- 
@@ -319,19 +347,26 @@ subtitle_text_col <- 'gray8'
                           aes(x = lon, y = lat, dx = u, dy = v), 
                           arrow.angle = 30, arrow.type = "open", arrow.length = 1.0, 
                           show_guide = TRUE, 
-                          pivot = 0,preserve.dir = TRUE, direction = "cw", color = 'gray10') +
+                          pivot = 0,preserve.dir = TRUE, direction = "cw", color = 'gray80') +
         scale_mag(name = "Velocity (m/s)",
                   max = 0.2, 
                   # max_size = 0.7
                   )+
         
-        scale_fill_viridis_c(name = "SSH above \nsea level (m)\n",#colours = cpal, 
-                             alpha = 0.9,
-                             label = function(x) sprintf("%.2f", x),
-                             # limits = c(0, 0.25), # m/s
-                             # breaks = seq(0, 0.2, 0.05)) +
-                             limits = c(0, 0.25), # km/hr
-                             breaks = seq(-0, 0.25, 0.05)) +
+        # scale_fill_viridis_c(name = "SSH above \nsea level (m)\n",#colours = cpal, 
+        #                      alpha = 0.9,
+        #                      label = function(x) sprintf("%.2f", x),
+        #                      # limits = c(0, 0.25), # m/s
+        #                      # breaks = seq(0, 0.2, 0.05)) +
+        #                      limits = c(0, 0.25), # km/hr
+        #                      breaks = seq(-0, 0.25, 0.05)) +
+        scale_fill_gradientn(colours = 
+                                 cpal[1:length(cpal)],
+                             
+                             breaks=seq(-0.1, 0.275, 0.05), #seq(6,32,2),
+                             limits = c(-0.1, 0.275),
+                             na.value = 'snow',
+                             name = "SSH above \nsea level (m)\n") +
         scale_alpha(guide = "none") +
         
 
@@ -345,7 +380,7 @@ subtitle_text_col <- 'gray8'
                        y=lat
                        ), color = "gray90",
                    # fill = "#2a9d8f", shape = 21,
-                   fill = "orange", shape = 21,
+                   fill = "#3c096c", shape = 21,
                    stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size + 5) +
 
 
@@ -363,12 +398,15 @@ subtitle_text_col <- 'gray8'
         ## coord_sf(ylim = c(35, 41), xlim =  c(-159, -141), expand = FALSE, crs = st_crs(4326)) +
         # coord_sf(ylim = c(37.5, 39.5), xlim =  c(-148, -144), expand = FALSE, crs = st_crs(4326)) +
         
-        coord_sf(xlim = c(make360(-148), make360(-144)), ylim = c(37.5, 39.5), expand = FALSE, crs = st_crs(4326)) +
+        coord_sf(xlim = c(make360(-149), make360(-144)), ylim = c(37.5, 40.5), expand = FALSE, crs = st_crs(4326)) +
+        
+        # scale_x_longitude(breaks = seq(make360(-148.5), make360(-144.5), 1)) +
+        # scale_y_latitude(breaks = seq(-10,10,5)) +
         
         theme_bw()+
         theme(axis.text = element_text(size = 14, colour = 1),
-              legend.text = element_text(size = 14, colour = 1), 
-              legend.title = element_text(size = 14, colour = 1)#,
+              legend.text = element_text(size = 12, colour = 1), 
+              legend.title = element_text(size = 13, colour = 1)#,
               # legend.position = c(.12,.17),
               # legend.background = element_rect(colour = 1, fill = "white")
         ) +
@@ -381,17 +419,17 @@ subtitle_text_col <- 'gray8'
     
     
     ## animate ---
-    title_eov <- 'surface currents'
+    title_eov <- 'sea surface height'
     subtitle_text_col <- 'gray8'
         caption_iso <- '' #'The orange circle is the current date-location. The darker circles are the previous locations. ' #The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
-        eov_source <- 'Copernicus Daily, 0.25 degree Global Ocean Gridded L4 Sea surface heights above sea level (m). \n Surface velocity (arrows) are calculated from u, v geostrophic components.'
+        eov_source <- 'Copernicus Daily, 0.25 degree Global Ocean Gridded L4 Sea surface heights above sea level (m) \n Surface velocity (arrows) are calculated from u, v geostrophic components'
         
         
         
     anim_trial_zoom <- gg_currents_zoom +     
         labs(title = str_c("STRETCH Daily turtle movements of Turtle Hau'oli (#17) with ", title_eov),
              subtitle = "Date : {frame_time}",
-             caption = str_c("\n \n Raw tracking data from ARGOS averaged to 1 daily location (orange circles). ", caption_iso, "Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
+             caption = str_c("\n \n Raw tracking data from ARGOS averaged to 1 daily location (circles). ", caption_iso, "Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe ")) +
         # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
         theme(
             # element_text(size=p_plot_text_size),
@@ -420,7 +458,7 @@ subtitle_text_col <- 'gray8'
         gganimate::animate(anim_trial_zoom, nframes = length(daily_dates), fps =2, 
                            # width = 1460, height = 720, res = 104,
                            width = 1640, height = 900, res = 104,
-                           renderer = av_renderer(str_c('~/Downloads/dbriscoe_stretch_animation_turtle17_hauoli_', params$eov,'_5Aug23zoom.mp4')))
+                           renderer = av_renderer(str_c('~/Downloads/dbriscoe_stretch_animation_turtle17_hauoli_', params$eov,'_8Aug23zoom.mp4')))
         
         
 

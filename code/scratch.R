@@ -1362,3 +1362,518 @@ g + scale_mag("Seals velocity", max = 1)
 g + scale_mag("Seals velocity", max_size = 2)
 g + scale_mag("Seals velocity", default_unit = "mm")
 
+
+# Load the package required to read JSON files.
+library("rjson")
+
+# Give the input file name to the function.
+result <- fromJSON(file = "daily_ncdf.json") %>% as.data.frame()
+ret <- jsonlite::read_json("ncdf_list.json")
+
+ret2 <- data.table::rbindlist(ret, fill=TRUE) %>% 
+    # unnest(eov) %>%  
+    purrr::pmap_dfr(data.frame)  # deals with remaining cols in list form
+
+# Print the result.
+print(result)
+
+dates
+params_df <- ret2[ret2$eov == params$eov,] 
+
+dates %>%
+    as.character() %>%
+    str_c(., params_df$date_string, sep=" ")
+
+
+nc_path = "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
+fname = 'noaa20NRTchlaGapfilledDaily_2023-08-03.nc'
+
+nc = nc_open(paste0(nc_path, '/' ,fname))
+print(nc)
+
+ras_nc = raster::stack(paste0(nc_path, '/' ,fname))[[1]]
+sp::plot(ras_nc, zlim=c(0,3))
+
+
+## Get Max Lat from Cohort 1 Data ----------------------
+raw_data[raw_data$lat == max(raw_data$lat),]
+
+raw_data[raw_data$lat >=47,]
+
+
+
+
+## redo eov animation static plot ---------------------------
+
+add_baseplot <- function(bbox) {
+    list(
+        # add land
+        geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black"),
+        # sest cbar height
+        guides(fill = guide_colourbar(barheight =12, ticks = TRUE,
+                                      frame.colour = "black", ticks.colour = "black")),
+        # set map extent
+        coord_sf(xlim = c(bbox[1], bbox[2]), ylim = c(bbox[3], bbox[4]), 
+                 expand = FALSE, crs = st_crs(4326)), 
+        labs(x = "Longitude", y = "Latitude")
+    )
+}
+
+update_map_extent <- function(xrange, yrange){
+    list(
+        coord_sf(xlim = c(xrange[1], xrange[2]), ylim = c(yrange[1], yrange[2]), 
+                 expand = FALSE, crs = st_crs(4326))
+    )
+}
+
+add_turtle_pts <- function(df, cpal=rainbow(25), size=3){
+    list(
+        geom_point(data=df, #aes(x = lon, y = lat, colour =  as.factor(id)), size = size),
+        aes(x=lon,y=lat, color = as.factor(id)),#shape = 21,
+        stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size, show.legend=FALSE),
+        scale_colour_manual(values = cpal)
+    )
+}
+
+add_turtle_pts_border <- function(df, cpal=rainbow(25), size=3){
+    list(
+        geom_point(data=df, #aes(x = lon, y = lat, colour =  as.factor(id)), size = size),
+                   aes(x=lon,y=lat), color = "azure2",shape = 21,
+                   stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size, show.legend=FALSE)
+    )
+}
+# add_turtle_pts <- function(df, size=3){
+#     list(
+#         geom_point(data=df, aes(x = lon, y = lat, colour = as.factor(group)), size = size)
+#     )
+# }
+
+add_track_spLines <- function(df, cpal, linewidth) {
+    list(
+        # add cohort 1 tracks
+        geom_sf(data = df %>% makeSpatialLines(lon360=FALSE), 
+                aes(colour = as.factor(id)),linewidth = linewidth, alpha = 0.9, show.legend=FALSE),
+        scale_colour_manual(values = cpal)
+    )
+}
+
+
+## TESTER
+test <- ggplot() +
+    # # # add ssta layer
+    # # geom_raster(data = ssta_ras_mean_df, 
+    # #             aes(x = lon, y = lat, fill = val, interpolate = TRUE)) +
+    # geom_tile(
+    #     
+    #     data = eov_df,
+    #     aes(x = x, y = y, fill = val, group = date)) +
+    # {
+    #     if (eov =='chla'){
+    #         # scale_fill_stepsn(colours = c( "gray99", cpal[2:length(cpal)]),
+    #         scale_fill_gradientn(colours = c( "gray99", cpal[6:length(cpal)]),
+    #                              breaks = cbar_breaks,
+    #                              limits = cbar_limits,
+    #                              na.value = 'snow',
+    #                              name = "Chl \n(mg/m^3) \n ")
+    #     } else if (eov =='sst') {
+    #         scale_fill_gradientn(colours = 
+    #                                  # cpal[12:length(cpal)],
+    #                                  # breaks=seq(10,25,2),
+    #                                  # limits = c(9.25,25),
+    #                                  cpal[11:length(cpal)],
+    #                              
+    #                              breaks=cbar_breaks, #seq(6,32,2),
+    #                              limits = c(min(cbar_limits),max(cbar_limits)),
+    #                              na.value = 'snow',
+    #                              name = "SST (°C) \n")
+    #     }
+    # } +
+    # 
+    # add sst sept all-time clim layer
+    geom_raster(data = eov_df, 
+                aes(x = x, y = y, fill = val, group = date), interpolate = TRUE) +
+
+    scale_fill_gradientn(colours = 
+                             # cpal[12:length(cpal)],
+                             # breaks=seq(10,25,2),
+                             # limits = c(9.25,25),
+                             cpal[11:length(cpal)],
+                         
+                         breaks=cbar_breaks, #seq(6,32,2),
+                         limits = c(min(cbar_limits),max(cbar_limits)),
+                         na.value = 'snow',
+                         name = "SST (°C) \n") +
+    # add baselayers
+    add_baseplot(bbox=e)
+    
+
+test + 
+    # add_track_spLines(turtles_df %>% 
+    #                          mutate(lon = make360(lon)), cpal=rainbow(25), linewidth=1) + 
+    add_turtle_pts(df=turtles_df %>% 
+                          mutate(lon = make360(lon)), cpal=rainbow(25)) + 
+
+    add_turtle_pts_border(df=turtles_df %>% 
+                              mutate(lon = make360(lon)))
+
+
+gg <- 
+    ggplot() +
+    geom_tile(
+        
+        data = eov_df,
+        aes(x = x, y = y, fill = val, group = date)) +
+    
+    
+    {
+        if (!is.null(tzcf_contour)) {
+            # add tzcf contour
+            geom_contour(data=eov_df, aes(x=x, y=y, z = val), colour = tzcf_color, linewidth = 1.25,
+                         breaks = c(tzcf_contour)) 
+        }
+    } +
+    
+    # # add tzcf contour
+    # geom_contour(data=eov_df, aes(x=x, y=y, z = val), colour = "white", linewidth = 1.25,
+    #              breaks = c(tzcf_contour)) +
+    
+    # add coast 
+    geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black") +
+    
+    
+    {
+        if (eov =='chla'){
+            # scale_fill_stepsn(colours = c( "gray99", cpal[2:length(cpal)]),
+            scale_fill_gradientn(colours = c( "gray99", cpal[6:length(cpal)]),
+                                 breaks = cbar_breaks,
+                                 limits = cbar_limits,
+                                 na.value = 'snow',
+                                 name = "Chl \n(mg/m^3) \n ")
+        } else if (eov =='sst') {
+            scale_fill_gradientn(colours = 
+                                     # cpal[12:length(cpal)],
+                                     # breaks=seq(10,25,2),
+                                     # limits = c(9.25,25),
+                                     cpal[11:length(cpal)],
+                                 
+                                 breaks=cbar_breaks, #seq(6,32,2),
+                                 limits = c(min(cbar_limits),max(cbar_limits)),
+                                 na.value = 'snow',
+                                 name = "SST (°C) \n")
+        }
+    } +
+    
+    
+    # turtle daily movements
+    
+    geom_point(data=turtles_df %>% 
+                   mutate(lon = make360(lon)),
+               # aes(x=lon,y=lat), color = "azure2",
+               aes(x=lon,y=lat, fill = as.factor(id)), color = "azure2",shape = 21,
+               # # fill = "#2a9d8f", shape = 21,
+               # fill = "#3c096c", shape = 21,
+               stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size) +
+    scale_fill_manual(values = rainbow(25)) +
+    
+    # release location
+    geom_point(data=release_loc, aes(x=lon, y=lat), fill = "lightgray",
+               color = "black", shape = 4, size = 5.5) +
+    
+    labs(x = "\n \n Longitude \n", y = "\n \n Latitude \n \n ") +
+    # theme(legend.position = "none") +
+    
+    theme_minimal() + theme(text=element_text(size=plot_params$plot_text_size)) +
+    # # coord_sf(xlim = c(make360(-160), make360(-140)), ylim = c(35, 45), expand = FALSE, crs = st_crs(4326)) +
+    coord_sf(xlim = c(make360(e[1]+1), make360(e[2])), ylim = c(e[3], e[4]), expand = FALSE, crs = st_crs(4326)) +
+    guides(fill = guide_colourbar(
+        barheight = plot_params$barheight,
+        ticks = TRUE)
+    ) + 
+    # facet_wrap(~date) +
+    NULL
+
+
+
+# set up base pac ocean map
+npac <- map_data('world', wrap=c(-25,335), ylim=c(-55,75)) %>%
+    filter(long >= 120 & long <= 270 & lat >= 15 & lat <=80) 
+
+fake <-ggplot(npac) +
+    
+    geom_polygon(aes(x = long, y = lat, group = group), colour = "black", size = 0.4, fill = 'black') +
+    coord_sf(xlim = c(make360(e[1]+1), make360(e[2])), ylim = c(e[3], e[4]), expand = FALSE, crs = st_crs(4326)) 
+
+p_npac <- 
+    ggplot(npac) +
+    
+    geom_polygon(aes(x = long, y = lat, group = group), colour = "black", size = 0.4, fill = 'black') + 
+    theme_bw() + 
+    ylab("") +  xlab("") +
+    annotate(
+        "rect",
+        xmin = e[1],
+        xmax = e[2]-5,
+        ymin = e[3],
+        ymax = e[4],
+        color = 'gray',
+        fill = 'transparent',
+        size = .7
+    ) +  
+    coord_map(xlim = c(180, 250), ylim = c(20,55)) + 
+    theme(
+        panel.background = element_rect(fill = "white"), 
+        plot.background = element_rect(fill = "transparent", color = NA), 
+        
+        panel.border = element_rect(colour = "white", fill=NA, size=2),
+        
+        plot.margin = unit(c(0, 0, 0, 0), "null"),
+        panel.spacing = unit(c(0, 0, 0, 0), "null"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        
+        legend.background = element_rect(fill = "transparent"), 
+        legend.box.background = element_rect(fill = "transparent"),
+        
+        axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()
+    ) 
+#   coord_map(xlim = c(172.5, 174.5), ylim = c(-41.75,-40.3))    # extended view (for polygons)
+
+p_npac + NULL
+
+# # library(cowplot)
+test2 <-
+    ggdraw() +
+    draw_plot(fake) +
+    draw_plot(p_npac, x = 0.725, y = .65, width = .2, height = .175)
+
+test <- fake +
+print(p_npac, vp = viewport(0.725, .65, width = 0.2, height = 0.175))
+
+
+
+## plot with state outlines
+library(sf)
+usa <- st_as_sf(maps::map("state", fill=TRUE, plot =FALSE))
+usa <- st_as_sf(usa, wkt = "geom", crs = 4326)
+st_set_crs(usa, 4326)
+usa_360 = st_shift_longitude(usa)
+
+ggplot() + geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black") + geom_sf(data = usa_360, color = "snow", fill = "black", size=0.125)
+
+
+
+test <- turtles_df_weekly %>% filter(date <= "2023-07-24") %>%
+    mutate(time = date) %>%
+    # 
+    # uncount(100, .id = "frame") %>%
+    # filter(time <= frame) %>%
+    # arrange(frame, time) %>%
+    # group_by(frame) %>%
+    group_by(date) %>%
+    mutate(x_lag = lag(make360(lon)), 
+           y_lag = lag(lat),
+           tail = last(time) - time,
+           # Make the points solid for 1 frame then alpha 0.3
+           point_alpha = if_else(tail == 0, 1, 0.3),
+           # Make the lines fade out over 20 frames
+           segment_alpha = pmax(0, (20-tail)/20)) %>%
+    ungroup() %>%
+
+ggplot(aes(x=make360(lon), y=lat, xend = y_lag, yend = x_lag, group = time)) +
+    geom_segment(aes(alpha = segment_alpha)) +
+    geom_point(aes(alpha = point_alpha)) +
+    scale_alpha(range = c(0,1)) +
+    guides(alpha = F) +
+    transition_manual(date)
+
+
+
+ggplot() +
+    # geom_tile(
+    #     
+    #     data = eov_df,
+    #     aes(x = x, y = y, fill = val, group = date)) +
+    
+    geom_raster(data = eov_df_weekly %>% filter(date == "2023-12-24") , 
+                aes(x = x, y = y, fill = val, group = date), interpolate = TRUE) +
+    
+    
+    {
+        if (!is.null(tzcf_contour)) {
+            # add tzcf contour
+            geom_contour(data=eov_df %>% filter(date == "2023-07-24"), aes(x=x, y=y, z = val), colour = tzcf_color, linewidth = 1.25,
+                         breaks = c(tzcf_contour)) 
+        }
+    } +
+    
+    # # add tzcf contour
+    # geom_contour(data=eov_df, aes(x=x, y=y, z = val), colour = "white", linewidth = 1.25,
+    #              breaks = c(tzcf_contour)) +
+    
+    # add coast 
+    geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black") +
+    
+    {
+        if (cclme){
+            # geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = id), fill = 'gray75', alpha = 0.5)  # fyi, for long360 do not use id -- use group to group
+            geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = group), fill = 'gray75', alpha = 0.5)  
+        }
+    } +
+    
+    
+    
+    # add state borders
+    # geom_sf(data = usa_360, color = "snow", fill = "black", size=0.5) +
+    {
+        if (eov =='chla'){
+            # scale_fill_stepsn(colours = c( "gray99", cpal[2:length(cpal)]),
+            scale_fill_gradientn(colours = c( "gray99", cpal[6:length(cpal)]),
+                                 breaks = cbar_breaks,
+                                 limits = cbar_limits,
+                                 na.value = 'snow',
+                                 name = "Chl \n(mg/m^3) \n ")
+        } else if (eov =='sst') {
+            scale_fill_gradientn(colours = 
+                                     # cpal[12:length(cpal)],
+                                     # breaks=seq(10,25,2),
+                                     # limits = c(9.25,25),
+                                     cpal[11:length(cpal)],
+                                 
+                                 breaks=cbar_breaks, #seq(6,32,2),
+                                 limits = c(min(cbar_limits),max(cbar_limits)),
+                                 na.value = 'snow',
+                                 name = "SST (°C) \n")
+        }
+    } +
+    
+
+    # turtle daily movements -- wc pal
+geom_point(data=turtles_df_weekly %>% filter(date <= "2023-07-24") %>%
+               mutate(lon = make360(lon)), #aes(x = lon, y = lat, colour =  as.factor(id)), size = size),
+           aes(x=lon,y=lat, color = as.factor(id)),#shape = 21,
+           stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size, show.legend=FALSE) +
+    scale_colour_manual(values = rainbow(25)) +
+    
+    ## add daily pts border
+    geom_point(data=turtles_df_weekly %>% filter(date <= "2023-07-24") %>%
+                   mutate(lon = make360(lon)),
+               # aes(x=lon,y=lat), color = "azure2",shape = 21,
+               aes(x=lon,y=lat, color = as.factor(id)), shape = 21,
+               stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size, show.legend=FALSE) +
+    
+    
+    ## add daily pts border
+    geom_line(data=turtles_df_weekly %>% filter(date <= "2023-07-24") %>%
+              mutate(lon = make360(lon)),
+              aes(x=lon,y=lat, color = as.factor(id)),
+              lwd = 1, 
+              alpha = 0.90, #size=plot_params$turtle_pt_size, 
+              show.legend=FALSE) +
+    
+    
+    # release location
+    geom_point(data=release_loc, aes(x=lon, y=lat), fill = "lightgray",
+               color = "black", shape = 4, size = 5.5) +
+    
+    labs(x = "\n \n Longitude \n", y = "\n \n Latitude \n \n ") +
+    # theme(legend.position = "none") +
+    
+    theme_minimal() + theme(text=element_text(size=plot_params$plot_text_size)) +
+    # # coord_sf(xlim = c(make360(-160), make360(-140)), ylim = c(35, 45), expand = FALSE, crs = st_crs(4326)) +
+    coord_sf(xlim = c(make360(e[1]+1), make360(e[2])), ylim = c(e[3], e[4]), expand = FALSE, crs = st_crs(4326)) +
+    guides(fill = guide_colourbar(
+        barheight = plot_params$barheight,
+        ticks = TRUE)
+    ) + 
+    # facet_wrap(~date) +
+    NULL
+
+
+test = data.frame(x = seq(2011,2021,1),
+                y = seq(35,45,1)
+                )
+
+xvar="x"; yvar="y"
+xvar <- sym(xvar)
+yvar <- sym(yvar)
+
+ggplot(test, aes(x=(!!xvar), y=(!!yvar))) +
+    geom_point(shape = 1, alpha=0.8) +
+    geom_line(alpha=0.3) 
+
+
+
+library(ggplot2)
+
+discrete_gradient_pal <- function(colours, bins = 5) {
+    ramp <- scales::colour_ramp(colours)
+    
+    function(x) {
+        if (length(x) == 0) return(character())
+        
+        i <- floor(x * bins)
+        i <- ifelse(i > bins-1, bins-1, i)
+        ramp(i/(bins-1))
+    }
+}
+
+scale_colour_discrete_gradient <- function(..., colours, bins = 5, na.value = "grey50", guide = "colourbar", aesthetics = "colour", colors)  {
+    colours <- if (missing(colours)) 
+        colors
+    else colours
+    continuous_scale(
+        aesthetics,
+        "discrete_gradient",
+        discrete_gradient_pal(colours, bins),
+        na.value = na.value,
+        guide = guide,
+        ...
+    )
+}
+
+
+gg + 
+    scale_fill_manual("SST (°C) \n", na.translate = F,
+                      values = cpal[7:length(cpal)], 
+                      # limits = c(6,34),  drop = FALSE,
+                      na.value="transparent",
+                      labels = seq(6,34,1)
+    )
+
+
+
+
+## cc gam
+# Install and load required packages
+if (!requireNamespace("mgcv", quietly = TRUE)) {
+    install.packages("mgcv")
+}
+library(mgcv)
+
+# Generate sample data with individual-specific effects (replace this with your own data)
+set.seed(123)
+n <- 100
+individuals <- 20
+data <- data.frame(
+    latitude = rep(rnorm(n/individuals, mean = 30, sd = 5), times = individuals),
+    month = rep(1:12, each = n/(12*individuals)),
+    year = rep(2000:2010, each = n/(11*individuals)),
+    individual = rep(1:individuals, each = n/individuals)
+)
+
+# Fit a GAM model with individual-specific effects
+gam_model <- gam(latitude ~ s(month, k = 12) + s(year, k = 10) + s(individual, bs = "re"), data = data)
+
+# Summary of the model
+summary(gam_model)
+
+# Plot the partial effects
+par(mfrow = c(1, 3))
+plot(gam_model, select = 1, col = "blue", main = "Month Effect")
+plot(gam_model, select = 2, col = "green", main = "Year Effect")
+plot(gam_model, select = 3, col = "red", main = "Individual Effect")

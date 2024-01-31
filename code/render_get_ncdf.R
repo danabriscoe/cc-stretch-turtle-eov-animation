@@ -29,7 +29,7 @@ render_ncdfs(
     enddate <- Sys.Date() - 2,
     startdate <- "2023-07-10",
     nc_path = "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac",
-    bbox <- tibble(ymin=20, ymax=50,xmin=-180, xmax=-110)
+    bbox <- dplyr::tibble(ymin=20, ymax=50,xmin=-180, xmax=-110)
 )
 
 # get chla daily
@@ -39,7 +39,7 @@ render_ncdfs(
     enddate <- Sys.Date() - 4,
     startdate <- "2023-07-10",
     nc_path = "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac",
-    bbox <- tibble(ymin=20, ymax=50,xmin=-180, xmax=-110)
+    bbox <- dplyr::tibble(ymin=20, ymax=50,xmin=-180, xmax=-110)
 )
 
 # sla with u, v
@@ -49,6 +49,6 @@ render_ncdfs(
     enddate <- Sys.Date() - 2,
     startdate <- "2023-07-10",
     nc_path = "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac",
-    bbox <- tibble(ymin=20, ymax=50,xmin=-180, xmax=-110)
+    bbox <- dplyr::tibble(ymin=20, ymax=50,xmin=-180, xmax=-110)
 )
 

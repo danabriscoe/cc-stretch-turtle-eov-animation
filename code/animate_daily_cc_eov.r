@@ -40,7 +40,7 @@ raw_data <- rbindlist(lapply(files, fread)) %>%
            date = 5
     ) %>%
     mutate(date = as.POSIXct(date, format= "%m/%d/%Y %H:%M:%S", tz="UTC")) %>%
-    filter(lat > 0) %>%
+    filter(lat > 0 & lat < 60) %>%
     filter(date >= '2023-07-11 04:30:00')
 
 head(raw_data)
@@ -59,9 +59,9 @@ daily_avg_data <- raw_data %>%
 params <-list()
 
 # Set param to run
-# params$eov = 'sst'
+params$eov = 'sst'
 # params$eov = 'ssta'
-params$eov = 'chla'
+# params$eov = 'chla'
 # params$eov = 'sla_uv'
 
 if(params$eov == 'sst'){
@@ -165,7 +165,8 @@ head(turtlesgeo)
 # xrange = c(120, 260)   # fyi, long has to be in 0 to 360 for the animation to work :/
 # yrange = c(25, 50)
 
-xrange = c(180, 250)   # fyi, long has to be in 0 to 360 for the animation to work :/
+xrange = c(make360(-165), 250)   # fyi, long has to be in 0 to 360 for the animation to work :/
+# yrange = c(35, 50)
 yrange = c(25, 50)
 
 e <- extent(xrange[1], xrange[2], yrange[1], yrange[2])
@@ -236,6 +237,9 @@ tail(g_df_subset)
 mapdata <- map_data('world', wrap=c(-25,335), ylim=c(-55,75)) %>%
     filter(long >= 120 & long <= 270 & lat >= 15 & lat <=80) 
 
+## get cclme shapefile
+cclme_df <- get_cclme_df()
+
 
 if(params$eov == 'sst'){
     eov_df <- g_df_subset %>% mutate(date = as.Date(date)) #%>% filter(date == '2023-07-11')
@@ -244,7 +248,7 @@ if(params$eov == 'sst'){
        # mutate(val = log(val)) #%>% filter(date == '2023-07-11')
 }
 
-turtles_df = turtlesgeo %>% filter(date %in% nc_dates) 
+turtles_df = turtlesgeo %>% filter(date %in% nc_dates) #%>% filter(id == "243197")
 
 release_loc = data.frame(lat=39.315, lon=213.9333)
 
@@ -253,13 +257,13 @@ p_plot_text_size = 14
 
 
 # >>>>>>>> TO UPDATE FUNCT WITH THIS INFO
-save_ext <- 'gif'
-# save_ext <- 'mp4'
+# save_ext <- 'gif'
+save_ext <- 'mp4'
 
 if(save_ext == 'mp4'){
     plot_params <- list(
         turtle_pt_size = 3.25,
-        barheight = 28.5, #38
+        barheight = 26.5, #38
         plot_text_size = 14,
         title_size = 18,
         subtitle_size = 16,
@@ -279,24 +283,48 @@ if(save_ext == 'gif'){
 ## Functionalized version ---------------------------
 # test_cpal = c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9)), "#9e2a2b", "firebrick4", "#540b0e", "#540b0e")
 
+# convert to weekly dates
+eov_df_weekly <- eov_df %>%
+    mutate(end_of_week = ceiling_date(date, "week") %>% as.Date(.)) %>%
+    group_by(end_of_week, x, y) %>%
+    summarize(val = mean(val, na.rm = TRUE), .groups = "drop") %>%
+    rename('date' = 'end_of_week')
+
+turtles_df_weekly <- turtles_df %>%
+    mutate(end_of_week = ceiling_date(date, "week") %>% as.Date(.)) %>%
+    group_by(end_of_week, id) %>%
+    summarize(lat = mean(lat, na.rm = TRUE),
+              lon = mean(lon, na.rm = TRUE), .groups = "drop") %>%
+    rename('date' = 'end_of_week')
+
+
 gg_static <- get_static_plot(
   eov = params$eov,
-  eov_df = eov_df,
-  turtles_df = turtles_df,
+  # eov_df = eov_df, #%>% filter(date >= '2023-07-15'),
+  # turtles_df = turtles_df, #%>% filter(date >= '2023-07-15'),
+  eov_df = eov_df_weekly, #%>% filter(date >= '2023-07-15'),
+  turtles_df = turtles_df_weekly, #%>% filter(date >= '2023-07-15'),
   e,
   release_loc,
   cpal = cpal,
   cbar_breaks,
   cbar_limits,
-  plot_params
+  plot_params,
+  cclme = TRUE
 )
+
+# # library(cowplot)
+# gg_static <-
+#     ggdraw() +
+#     draw_plot(gg_static) +
+#     draw_plot(p_npac, x = 0.725, y = .65, width = .2, height = .175)
 
 
 ## Animate Tracks by Date ----- ----------------
 if(params$eov == 'sst'){
     title_eov <- 'sea surface temperature (SST)'
     subtitle_text_col <- 'snow'
-        caption_iso <- 'The white line represents the 17°C isotherm. '
+        caption_iso <- 'The white line represents the 18°C isotherm '
         eov_source <- 'NOAA Coral Reef Watch 5km Daily SST'
 } else if(params$eov == 'chla'){
     title_eov <- 'chlorophyll-a (Chl)'
@@ -311,9 +339,9 @@ if(params$eov == 'sst'){
 }
 
 anim_trial = gg_static + transition_time(date) +    # fyi, this requires install of transformr (devtools::install_github("thomasp85/transformr"))
-    labs(title = str_c("STRETCH Daily turtle movements (n=25) with ", title_eov),
+    labs(title = str_c("STRETCH Weekly turtle movements (n=25) with ", title_eov),
          subtitle = "Date: {frame_time}", 
-         caption = str_c("\n \n Raw tracking data from ARGOS averaged to 1 daily location per turtle (purple circles) \n ", caption_iso, "Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
+         caption = str_c("\n \n Raw tracking data from ARGOS averaged to 1 weekly location per turtle (circles) \n ", caption_iso, "\nCalifornia Current Large Marine Ecosystem (CCLME) shaded in gray\n","Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
     # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
     theme(
         # element_text(size=p_plot_text_size),
@@ -325,9 +353,15 @@ anim_trial = gg_static + transition_time(date) +    # fyi, this requires install
     #     barheight = p_barheight
     # )) +
     
-    shadow_wake(wake_length=0.5, alpha = 0.2, wrap=FALSE,
-                falloff = 'sine-in', exclude_phase = 'enter', size=0.75,
-                exclude_layer = c(1,2, length(daily_dates))
+    shadow_wake(
+                # wake_length=0.5, #daily 
+                wake_length=1, 
+                alpha = 0.2, wrap=FALSE,
+                falloff = 'sine-in', exclude_phase = 'enter', 
+                # size=0.75, # daily
+                size=1.25,
+                # exclude_layer = c(1,2, length(daily_dates))
+                exclude_layer = c(1,2, length(unique(turtles_df_weekly$date)))
     ) +
     enter_fade() +
     exit_disappear() +  
@@ -335,15 +369,22 @@ anim_trial = gg_static + transition_time(date) +    # fyi, this requires install
     NULL
 
 
+
 #' 
 ## ----trial-save-mp------------------------------------------------------------------------------------------------------
+# n = length(daily_dates)
+n = length(unique(turtles_df_weekly$date))
 
 if(save_ext == 'mp4'){
 ## Save as MP4 (Faster render)
-gganimate::animate(anim_trial, nframes = length(daily_dates), fps =2, 
+gganimate::animate(anim_trial, nframes = n, 
+                   # fps = 4,
+                   fps = 2,
                    # width = 1460, height = 720, res = 104,
                    width = 1640, height = 900, res = 104,
-                   renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_full_contours_v1Aug.mp4')))
+                   renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_full_contours_18Dec2023_wc_pal_v2_fps3_cclme_weekly_v2.mp4')))
+                # renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_full_contours_18Dec2023_wc_pal_v2_fps3_cclme_weekly.mp4')))
+                   # renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_full_contours_24Oct2023_wc_pal_v2_fps3_inset.mp4')))
 }
 
 
@@ -479,7 +520,7 @@ if(save_ext == 'gif'){
         anim_trial <- anim_trial
     }
     gganimate::animate(anim_trial, 
-        nframes = length(daily_dates), fps =2,
+        nframes = length(daily_dates), fps =3,
                    # detail = 5,
                    # height = 4, #width = 3000,
                    #  # height = 700, #width = 2000,
@@ -489,5 +530,5 @@ if(save_ext == 'gif'){
 
 anim_save(animation = last_animation(),
           fps =2,
-          nframes =  length(daily_dates),str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_v1Aug_gif.gif'))
+          nframes =  length(daily_dates),str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_full_contours_24Oct2023_wc_pal_v2_fps3.gif'))
 } 

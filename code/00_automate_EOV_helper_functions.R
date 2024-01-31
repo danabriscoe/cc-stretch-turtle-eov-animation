@@ -180,6 +180,18 @@ parseDT <- function(x, idx, start, stop, format){
 }
 
 ## plot funcs ----
+
+get_cclme_df <- function(){
+    ## 1) load cclme shapefile
+    cclme_shp <- rgdal::readOGR(dsn = "~/Dropbox/RESEARCH/PROJECTS/NPAC_Turtles/thermal_ms_2018/data/cclme_shp/", layer = "lme")
+    
+    # fortify to convert shpfile into dataframe for ggplot
+    cclme_df <- fortify(cclme_shp) %>%
+        mutate(lat.x = lat)
+    
+}
+
+
 make180 <- function(lon){
     isnot360<-min(lon)<0
     if (!isnot360) {
@@ -319,17 +331,22 @@ get_npac_map <- function(xy, lon_type = '360', add_deploy_lons=TRUE, cpal, col_b
 
 
 # get static plot (for gganimate) --
-get_static_plot <- function(eov, eov_df, turtles_df, e, release_loc, cpal = cpal, cbar_breaks, cbar_limits, plot_params){
+get_static_plot <- function(eov, eov_df, turtles_df, e, release_loc, cpal = cpal, cbar_breaks, cbar_limits, plot_params, cclme = TRUE){
    
     mapdata <- map_data('world', wrap=c(-25,335), ylim=c(-55,75)) %>%
         filter(long >= 120 & long <= 270 & lat >= 15 & lat <=80) 
     
+    library(sf)
+    usa <- st_as_sf(maps::map("state", fill=TRUE, plot =FALSE))
+    usa <- st_as_sf(usa, wkt = "geom", crs = 4326)
+    st_set_crs(usa, 4326)
+    usa_360 = st_shift_longitude(usa)
 
     p_barheight = 28.5 #38
     p_plot_text_size = 14
    
     if(eov == 'sst'){
-        tzcf_contour = 17
+        tzcf_contour = 18 #17
         tzcf_color = 'white'
     } else if(eov == 'chla'){
         tzcf_contour = 0.2
@@ -340,10 +357,13 @@ get_static_plot <- function(eov, eov_df, turtles_df, e, release_loc, cpal = cpal
      
     gg <- 
         ggplot() +
-        geom_tile(
-            
-            data = eov_df,
-            aes(x = x, y = y, fill = val, group = date)) +
+        # geom_tile(
+        #     
+        #     data = eov_df,
+        #     aes(x = x, y = y, fill = val, group = date)) +
+        
+        geom_raster(data = eov_df, 
+                    aes(x = x, y = y, fill = val, group = date), interpolate = TRUE) +
         
         
         {
@@ -360,6 +380,16 @@ get_static_plot <- function(eov, eov_df, turtles_df, e, release_loc, cpal = cpal
         
         # add coast 
         geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black") +
+        
+        {
+            if (cclme){
+                # geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = id), fill = 'gray75', alpha = 0.5)  # fyi, for long360 do not use id -- use group to group
+                geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = group), fill = 'gray75', alpha = 0.5)  
+            }
+        } +
+        
+        # add state borders
+        geom_sf(data = usa_360, color = "snow", fill = "black", size=0.5) +
         
         
         {
@@ -385,13 +415,35 @@ get_static_plot <- function(eov, eov_df, turtles_df, e, release_loc, cpal = cpal
         } +
         
         
-        # turtle daily movements
+        # # turtle daily movements -- purple circles only
+        # geom_point(data=turtles_df %>% 
+        #                mutate(lon = make360(lon)),
+        #            aes(x=lon,y=lat), color = "azure2",
+        #            # fill = "#2a9d8f", shape = 21,
+        #            fill = "#3c096c", shape = 21,
+        #            stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size) +
+        
+        # turtle daily movements -- wc pal
+        geom_point(data=turtles_df %>% 
+                         mutate(lon = make360(lon)), #aes(x = lon, y = lat, colour =  as.factor(id)), size = size),
+               aes(x=lon,y=lat, color = as.factor(id)),#shape = 21,
+               stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size, show.legend=FALSE) +
+        scale_colour_manual(values = rainbow(25)) +
+    
+        ## add daily pts border
         geom_point(data=turtles_df %>% 
                        mutate(lon = make360(lon)),
-                   aes(x=lon,y=lat), color = "azure2",
-                   # fill = "#2a9d8f", shape = 21,
-                   fill = "#3c096c", shape = 21,
-                   stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size) +
+                   # aes(x=lon,y=lat), color = "azure2",shape = 21,
+                   aes(x=lon,y=lat, color = as.factor(id)), shape = 21,
+                   stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size, show.legend=FALSE) +
+        
+    
+        ## add daily pts line
+        geom_path(data = turtles_df %>% 
+                      mutate(lon = make360(lon)),
+                  aes(x=lon,y=lat, color = as.factor(id)),
+                  alpha = 0.90,
+                  linewidth = 1.5, show.legend = FALSE) +
         
         # release location
         geom_point(data=release_loc, aes(x=lon, y=lat), fill = "lightgray",
@@ -412,6 +464,9 @@ get_static_plot <- function(eov, eov_df, turtles_df, e, release_loc, cpal = cpal
     
     return(gg)
 }
+
+
+
 
 prep_uv_geostrophic <- function(x = ncIn){
     require(metR)
