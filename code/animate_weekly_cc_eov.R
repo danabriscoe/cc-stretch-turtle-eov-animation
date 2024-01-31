@@ -89,8 +89,8 @@ if(params$eov == 'sst'){
         substr(., start=1, stop=10)
     
     limits = c(5,35)
-    cbar_breaks = seq(6, 34, 2)
-    cbar_limits = c(5, 34)
+    cbar_breaks = seq(4, 34, 1)
+    cbar_limits = c(4, 34)
     tzcf_contour = 17
     
     smooth_rainbow <- khroma::colour("smooth rainbow")
@@ -257,28 +257,28 @@ p_plot_text_size = 14
 
 # >>>>>>>> TO UPDATE FUNCT WITH THIS INFO
 # save_ext <- 'gif'
-save_ext <- 'mp4'
-
-if(save_ext == 'mp4'){
-    plot_params <- list(
-        turtle_pt_size = 3.25,
-        barheight = 26.5, #38
-        plot_text_size = 14,
-        title_size = 18,
-        subtitle_size = 16,
-        caption_size = 14
-    )  
-}
-if(save_ext == 'gif'){
-    plot_params <- list(
-        turtle_pt_size = 5.25,
-        barheight = 34,
-        plot_text_size = 22,
-        title_size = 24,
-        subtitle_size = 22,
-        caption_size = 20
-    )
-}
+# # save_ext <- 'mp4'
+# 
+# if(save_ext == 'mp4'){
+#     plot_params <- list(
+#         turtle_pt_size = 3.25,
+#         barheight = 26.5, #38
+#         plot_text_size = 14,
+#         title_size = 18,
+#         subtitle_size = 16,
+#         caption_size = 14
+#     )  
+# }
+# if(save_ext == 'gif'){
+#     plot_params <- list(
+#         turtle_pt_size = 5.25,
+#         barheight = 34,
+#         plot_text_size = 22,
+#         title_size = 24,
+#         subtitle_size = 22,
+#         caption_size = 20
+#     )
+# }
 ## Functionalized version ---------------------------
 # test_cpal = c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9)), "#9e2a2b", "firebrick4", "#540b0e", "#540b0e")
 
@@ -314,98 +314,16 @@ gg_static <- get_static_plot(
 )
 
 
-# 
-# 
-# 
-# 
-# df <- turtles_df_weekly %>%
-#     filter(id == '243178') %>%
-#     # arrange(date) %>%
-#     mutate(time = date) %>%
-#     group_by(time) %>%
-# 
-# # plot_data %>%
-#     uncount(24, .id = "frame") %>%
-#     filter(time <= frame) %>%
-#     arrange(frame, time) %>%
-#     group_by(frame) %>%
-#     mutate(x_lag = lag(lon), 
-#            y_lag = lag(lat),
-#            tail = last(time) - time,
-#            # Make the points solid for 1 frame then alpha 0.3
-#            point_alpha = if_else(tail == 0, 1, 0.3),
-#            # Make the lines fade out over 20 frames
-#            segment_alpha = pmax(0, (20-tail)/20)) %>%
-#     ungroup() %>%
-#     
-#     ggplot(aes(x=lon, y=lat, xend = x_lag, yend = y_lag, group = time)) +
-#     geom_segment(aes(alpha = segment_alpha)) +
-#     geom_point(aes(alpha = point_alpha)) +
-#     scale_alpha(range = c(0,1)) +
-#     guides(alpha = F) +
-#     transition_manual(frame)
-#     # transition_manual(time)
-# 
-# 
-# 
-# map1 <- ggplot() +
-#     # geom_polygon(data=mapWorld, aes(x=long, y=lat, group=group), 
-#     #              color= "darkolivegreen", 
-#     #              fill="darkolivegreen") +
-#     geom_path(data = df, aes(x=lon, 
-#                                 y = lat,
-#                                 group = id,
-#                                 color = factor(id)),
-#               linewidth = 1.5, show.legend = FALSE) +
-#     geom_point(data = df, aes(lon, 
-#                                  lat,
-#                                  group = id,
-#                                  color = factor(id)), 
-#                alpha = 1, size = 2, shape = 21) +
-#     
-#     coord_sf(xlim=c(-170, -115), ylim=c(27,62), expand = FALSE) +
-#     labs(x="Longitude", 
-#          y="Latitude") 
+
 
 library(gganimate)
 library(gifski)
 
-# map1.animation =  map1 + 
-#     transition_reveal(along = date) + 
-#     ease_aes('linear') + 
-#     enter_fade() + 
-#     exit_fade() 
-# 
-# animate(map1.animation, fps = 30,
-#         nframes = 360, 
-#         width = 1071, 
-#         height = 715)
-# 
-# 
-# 
-# #####-------------
-# ## trial
-# df <- turtles_df_weekly %>%
-#     filter(id == '243178') 
-# 
-#     # gg_static <- get_static_plot(
-#     #     eov = params$eov,
-#     #     # eov_df = eov_df, #%>% filter(date >= '2023-07-15'),
-#     #     # turtles_df = turtles_df, #%>% filter(date >= '2023-07-15'),
-#     #     eov_df = eov_df_weekly, #%>% filter(date >= '2023-07-15'),
-#     #     turtles_df = turtles_df_weekly, #%>% filter(date >= '2023-07-15'),
-#     #     e,
-#     #     release_loc,
-#     #     cpal = cpal,
-#     #     cbar_breaks,
-#     #     cbar_limits,
-#     #     plot_params,
-#     #     cclme = TRUE
 #     # )
 
 eov='sst'
 cclme = TRUE
-zCuts <- seq(6,34,1)
+zCuts <- seq(4,34,1)
 
 ## fun innerds
 mapdata <- map_data('world', wrap=c(-25,335), ylim=c(-55,75)) %>%
@@ -431,187 +349,29 @@ if(eov == 'sst'){
 }
 
 
-# dt = c('2023-08-30')
-# eov_test = eov_df_weekly %>% filter(date <= dt) %>% mutate(dtID = week(date))
-# turtles_test = turtles_df_weekly %>% 
-#     # filter(id == '243178') %>% 
-#     filter(date <= dt) %>% group_by(date) %>% mutate(dtID = week(date))
-# 
-# 
-# 
-# gg <- 
-#     ggplot() +
-# 
-#     # geom_tile(data = eov_test, 
-#     geom_raster(data = eov_test,
-#                 # aes(x = x, y = y, fill = val, group = date), interpolate = TRUE) +
-#                 aes(x = x, y = y, fill = factor(cut(val, zCuts)), group = date), interpolate = TRUE) +
-#     
-#     
-#     {
-#         if (!is.null(tzcf_contour)) {
-#             # add tzcf contour
-#             geom_contour(data=eov_test, aes(x=x, y=y, z = val), colour = tzcf_color, linewidth = 1.25,
-#                          breaks = c(tzcf_contour)) 
-#         }
-#     } +
-#     
-#     # # add tzcf contour
-#     # geom_contour(data=eov_df, aes(x=x, y=y, z = val), colour = "white", linewidth = 1.25,
-#     #              breaks = c(tzcf_contour)) +
-#     
-#     # add coast 
-#     geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black") +
-#     
-#     {
-#         if (cclme){
-#             # geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = id), fill = 'gray75', alpha = 0.5)  # fyi, for long360 do not use id -- use group to group
-#             geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = group), fill = 'gray75', alpha = 0.5)  
-#         }
-#     } +
-#     
-#     # add state borders
-#     geom_sf(data = usa_360, color = "snow", fill = "black", size=0.5) +
-#     
-#     
-#     {
-#         if (eov =='chla'){
-#             # scale_fill_stepsn(colours = c( "gray99", cpal[2:length(cpal)]),
-#             scale_fill_gradientn(colours = c( "gray99", cpal[6:length(cpal)]),
-#                                  breaks = cbar_breaks,
-#                                  limits = cbar_limits,
-#                                  na.value = 'snow',
-#                                  name = "Chl \n(mg/m^3) \n ")
-#         } else if (eov =='sst') {
-#             # scale_fill_gradientn(colours =
-#             #                          # cpal[12:length(cpal)],
-#             #                          # breaks=seq(10,25,2),
-#             #                          # limits = c(9.25,25),
-#             #                          cpal[11:length(cpal)],
-#             # 
-#             #                      breaks=cbar_breaks, #seq(6,32,2),
-#             #                      limits = c(min(cbar_limits),max(cbar_limits)),
-#             #                      na.value = 'snow',
-#             #                      name = "SST (°C) \n")
-#             scale_fill_manual("SST (°C) \n", na.translate = F,
-#                               values = cpal[7:length(cpal)], 
-#                               # breaks=zCuts, #seq(6,32,2),
-#                               # limits = c(min(zCuts),max(zCuts)),
-#                               na.value="transparent",
-#                               labels = seq(6,34,1)
-#             )
-#             
-#             
-#         }
-#     } +
-#     
-# 
-#     
-# #     # turtle daily movements -- wc pal
-# # geom_point(inherit.aes = FALSE, data=turtles_test %>%
-# #                mutate(lon = make360(lon)), #aes(x = lon, y = lat, colour =  as.factor(id)), size = size),
-# #            aes(x=lon,y=lat, color = as.factor(id)),#shape = 21,
-# #            stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size, show.legend=FALSE) +
-# #     scale_colour_manual(values = rainbow(25)) +
-# # 
-# #     ## add daily pts border
-# #     geom_point(inherit.aes = FALSE, data=turtles_test %>% 
-# #                    mutate(lon = make360(lon)),
-# #                # aes(x=lon,y=lat), color = "azure2",shape = 21,
-# #                aes(x=lon,y=lat, color = as.factor(id)), shape = 21,
-# #                stroke = 1, alpha = 0.90, size=plot_params$turtle_pt_size, show.legend=FALSE) +
-# 
-# 
-#     # ## add daily pts line
-#     geom_path(data = turtles_test %>%
-#                   mutate(lon = make360(lon)),
-#               aes(x=lon,y=lat, color = as.factor(id),
-#                   group = as.factor(id)),
-#               # alpha = 0.90,
-#               linewidth = 1.5, show.legend = FALSE) +
-# 
-#     # geom_point(data = turtles_test %>%
-#     #                mutate(lon = make360(lon)),
-#     #            aes(x=lon,y=lat, color = as.factor(id), group = seq_along(date))) +
-#     # transition_reveal(Day)
-#     
-#     # release location
-#     geom_point(data=release_loc, aes(x=lon, y=lat), fill = "lightgray",
-#                color = "black", shape = 4, size = 5.5) +
-#     
-#     labs(x = "\n \n Longitude \n", y = "\n \n Latitude \n \n ") +
-#     # theme(legend.position = "none") +
-#     
-#     theme_minimal() + theme(text=element_text(size=plot_params$plot_text_size)) +
-#     # # coord_sf(xlim = c(make360(-160), make360(-140)), ylim = c(35, 45), expand = FALSE, crs = st_crs(4326)) +
-#     coord_sf(xlim = c(make360(e[1]+1), make360(e[2])), ylim = c(e[3], e[4]), expand = FALSE, crs = st_crs(4326)) +
-#     # guides(fill = guide_colourbar(
-#     #     barheight = plot_params$barheight,
-#     #     ticks = TRUE)
-#     # ) + 
-#     guides(fill = guide_legend(title = 'SST (°C)', ncol=1, reverse=T)) + 
-#     # facet_wrap(~date) +
-#     NULL
-# 
-# 
-# 
-# 
-# df_anim <- gg +
-#     transition_time(date) +  # geom_raster works
-# # transition_manual(date, cumulative=FALSE) +  # geom_raster works
-# #     transition_states(date) +
-# 
-#     # transition_reveal(along = date) +    # geom_path workins
-#     
-#     shadow_wake(
-#         # wake_length=0.5, #daily 
-#         wake_length=7, 
-#         alpha = 0.2, wrap=FALSE,
-#         falloff = 'sine-in', exclude_phase = 'enter', 
-#         # size=0.75, # daily
-#         size=1.25,
-# 
-#         exclude_layer = c(1,2, length(unique(turtles_test$date)))
-#     ) +
-# 
-#     exit_shrink() +
-#     # exit_disappear() +  
-#     ease_aes('linear') +
-#     NULL
-# 
-# 
-# n = length(unique(turtles_test$date))
-# gganimate::animate(df_anim, nframes = n, 
-#                    # fps = 4,
-#                    fps = 2,
-#                    # width = 1460, height = 720, res = 104,
-#                    width = 1640, height = 900, res = 104,
-#                    renderer = av_renderer(str_c('~/Downloads/dbriscoe_animation_trial_', params$eov,'_df_anim.mp4')))
-# 
-# 
-# n = length(unique(turtles_test$date))
+
 
 # -----------------------------------------------------------------------------------------------
 release_loc = data.frame(lat=39.315, lon=213.9333)
 
-p_barheight = 28.5 #38
-p_plot_text_size = 14
+# p_barheight = 28.5 #38
+# p_plot_text_size = 14
 
 
 # >>>>>>>> TO UPDATE FUNCT WITH THIS INFO
 save_ext <- 'gif'
 # save_ext <- 'mp4'
 
-if(save_ext == 'mp4'){
-    plot_params <- list(
-        turtle_pt_size = 3.25,
-        barheight = 26.5, #38
-        plot_text_size = 14,
-        title_size = 18,
-        subtitle_size = 16,
-        caption_size = 14
-    )  
-}
+# if(save_ext == 'mp4'){
+#     plot_params <- list(
+#         turtle_pt_size = 3.25,
+#         barheight = 26.5, #38
+#         plot_text_size = 14,
+#         title_size = 18,
+#         subtitle_size = 16,
+#         caption_size = 14
+#     )  
+# }
 if(save_ext == 'gif'){
     plot_params <- list(
         turtle_pt_size = 2,
@@ -671,7 +431,7 @@ weekly_tracks_plot_list <-
             
         ## for discrete color pal ---        
             geom_contour_filled(data = eov_test %>% subset(!is.na(val)) ,
-                                    aes(x = x, y = y, z = val, group = date), breaks = seq(6,34,1)) + 
+                                    aes(x = x, y = y, z = val, group = date), breaks = seq(cbar_limits[1],cbar_limits[2],1)) + 
                 
             
             {
@@ -718,8 +478,8 @@ weekly_tracks_plot_list <-
                     # )
                     
                     ## discrete cpal (manual range set)
-                    scale_fill_manual(values = cpal[7:length(cpal)], name = "SST (°C) \n", 
-                                      labels = seq(2, 30, 1), drop = F, na.translate = F,
+                    scale_fill_manual(values = cpal[5:length(cpal)], name = "SST (°C) \n", 
+                                      labels = seq(cbar_limits[1], cbar_limits[2], 1), drop = F, na.translate = F,
                                       guide = guide_legend(label.vjust=+1.2, barwidth = 1, #barheight = 32,
                                                            frame.colour = "black", ticks.colour = "black", ncol =1, reverse=T)) 
                     
@@ -768,7 +528,7 @@ weekly_tracks_plot_list <-
             #     barheight = plot_params$barheight,
             #     ticks = TRUE)
             # ) + 
-            guides(fill = guide_legend(title = 'SST (°C)', ncol=1, reverse=T, barheight = plot_params$barheight, limits = c(6, 34),
+            guides(fill = guide_legend(title = 'SST (°C)', ncol=1, reverse=T, barheight = plot_params$barheight, limits = cbar_breaks,
                                        ticks = TRUE)) + 
             
                 
@@ -786,11 +546,12 @@ weekly_tracks_plot_list <-
                     plot.title = element_text(size=plot_params$title_size, face="bold", margin=margin(t=20,b=0), hjust=0.03),
                     plot.subtitle = element_text(size = plot_params$subtitle_size, face="bold", margin=margin(t=30,b=-30), hjust=0.025, color=subtitle_text_col),
                     plot.caption = element_text(size=plot_params$caption_size),
+                    legend.key = element_rect(color="gray80", fill = 'white'), legend.key.size=unit(13,"point"),
                     plot.margin = unit(c(0.75, 0, 0.5, 0), "cm")) +
                 
-                # NULL
-            # +
-                theme(legend.key = element_rect(color="gray80", fill = 'white'))
+                NULL
+            # # +
+            #     theme(legend.key = element_rect(color="gray80", fill = 'white'))
         
     })
 
@@ -806,7 +567,7 @@ save_figs = TRUE
 if(save_figs){
     lapply(seq(1:length(wk_names)), function(i) {ggsave(weekly_tracks_plot_list[[i]], 
                                                          file = str_c('./anim_figs/', i, "_", dates[i], "_", eov, "_tracks.png"), 
-                                                         width=16, 
+                                                         width=12, 
                                                          # height=8.5,   # comment out height to get auto aspect ratio set!
                                                          bg = 'white')
     })
@@ -835,7 +596,7 @@ plots_list <- lapply(pfiles, image_read)
 plot_joined <- image_join(plots_list)
 
 # Create animation, defining the frames per second (fps)
-plot_animated <- image_animate(plot_joined, fps = 1.5)
+plot_animated <- image_animate(plot_joined, fps = 2)
 
 # Write animation as gif
 image_write(image = plot_animated,
