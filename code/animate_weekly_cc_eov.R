@@ -719,7 +719,7 @@ weekly_tracks_plot_list <-
                     
                     ## discrete cpal (manual range set)
                     scale_fill_manual(values = cpal[7:length(cpal)], name = "SST (°C) \n", 
-                                      labels = seq(4, 36, 1), drop = F, na.translate = F,
+                                      labels = seq(2, 30, 1), drop = F, na.translate = F,
                                       guide = guide_legend(label.vjust=+1.2, barwidth = 1, #barheight = 32,
                                                            frame.colour = "black", ticks.colour = "black", ncol =1, reverse=T)) 
                     
@@ -818,7 +818,7 @@ if(save_figs){
 library(magick)
 
 # List plots files
-plot_files <- list.files('./anim_figs', pattern = "_tracks",full.names=T) %>% list.files('./anim_figs', pattern = eov, full.names=T)
+plot_files <- list.files('./anim_figs', pattern = "_tracks",full.names=T) #%>% list.files('./anim_figs', pattern = eov, full.names=T)
 pfiles <- plot_files[order(basename(plot_files))]
 
 # arrange by month order
