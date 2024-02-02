@@ -89,14 +89,21 @@ if(params$eov == 'sst'){
         substr(., start=1, stop=10)
     
     limits = c(5,35)
-    cbar_breaks = seq(4, 34, 1)
-    # cbar_limits = c(4, 34)
-    cbar_limits <- c(6,31)
-    tzcf_contour = 17
+    # cbar_breaks = seq(4, 34, 1)
+    # cbar_limits = c(4, 32)
+    # # cbar_limits <- c(6,31)
+    
+    # goc masked
+    cbar_breaks = seq(4, 30, 1)
+    cbar_limits = c(4, 31)
+    # cbar_limits <- c(6,31)
+    
+    tzcf_contour = 18
     
     smooth_rainbow <- khroma::colour("smooth rainbow")
     
-    cpal <- c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9)), "#9e2a2b", "firebrick4", "#540b0e")
+    # cpal <- c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9)), "#9e2a2b", "firebrick4", "#540b0e")
+    cpal <- c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9)), "#9e2a2b", "firebrick4")
     
     
 } else if(params$eov == 'ssta'){
@@ -212,10 +219,20 @@ ras_subset <- crop(ras, e_subset_180)
 
 # rm(ras)
 
+# Mask out GoC -----------------
+goc_mask <- rbind(c(-110, 23.75), c(-122, 40), c(-110, 40), c(-110, 23.75))
+goc_mask <- SpatialPolygons(list(Polygons(list(Polygon(goc_mask)), 1)))
+
+## THIS WORKS!!!
+ras_masked <- mask(ras_subset, goc_mask, inverse=T)
+
+
 #' 
 ## ----convert-ras-to-df--------------------------------------------------------------------------------------------------
 # convert gridded raster data dataframe
-g <- ras_subset
+# g <- ras_subset
+g <- ras_masked
+
 g_df_subset <- g %>%
     rasterToPoints %>%
     as.data.frame() %>%
@@ -293,9 +310,9 @@ eov='sst'
 cclme = TRUE
 zCuts <- seq(4,34,1)
 
-## fun innerds
-mapdata <- map_data('world', wrap=c(-25,335), ylim=c(-55,75)) %>%
-    filter(long >= 120 & long <= 270 & lat >= 15 & lat <=80) 
+# ## fun innerds
+# mapdata <- map_data('world', wrap=c(-25,335), ylim=c(-55,75)) %>%
+#     filter(long >= 120 & long <= 270 & lat >= 15 & lat <=80) 
 
 library(sf)
 usa <- st_as_sf(maps::map("state", fill=TRUE, plot =FALSE))
@@ -457,8 +474,12 @@ weekly_tracks_plot_list <-
                     # )
                     
                     ## discrete cpal (manual range set)
-                    scale_fill_manual(values = cpal[5:length(cpal)], name = "SST (°C) \n", 
-                                      labels = c("≤ 6",seq(7,33, 1),"≥ 32"), drop = F, na.translate = F,
+                    # scale_fill_manual(values = cpal[5:length(cpal)], name = "SST (°C) \n", 
+                    #                   labels = c("≤ 6",seq(7,31, 1),"≥ 32"), drop = F, na.translate = F,
+                    #                   guide = guide_legend(label.vjust=+1.2, barwidth = 1, #barheight = 32,
+                    #                                        frame.colour = "black", ticks.colour = "black", ncol =1, reverse=T)) 
+                    scale_fill_manual(values = cpal[7:length(cpal)], name = "SST (°C) \n", 
+                                      labels = seq(4,30, 1), drop = F, na.translate = F,
                                       guide = guide_legend(label.vjust=+1.2, barwidth = 1, #barheight = 32,
                                                            frame.colour = "black", ticks.colour = "black", ncol =1, reverse=T)) 
                     

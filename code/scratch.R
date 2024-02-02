@@ -1848,32 +1848,209 @@ gg +
 
 
 
-## cc gam
-# Install and load required packages
-if (!requireNamespace("mgcv", quietly = TRUE)) {
-    install.packages("mgcv")
-}
-library(mgcv)
+scale_fill_manual(values = cpal, #name = "", 
+                  labels = cbar_labels, drop = F, na.translate = F,
+                  guide = guide_legend(label.vjust=+1.2, barwidth = 1, barheight = 32,
+                                       frame.colour = "black", ticks.colour = "black", ncol =1, reverse=T)) +
+    theme(legend.key = element_rect(color="gray80", fill = 'white'))
 
-# Generate sample data with individual-specific effects (replace this with your own data)
-set.seed(123)
-n <- 100
-individuals <- 20
-data <- data.frame(
-    latitude = rep(rnorm(n/individuals, mean = 30, sd = 5), times = individuals),
-    month = rep(1:12, each = n/(12*individuals)),
-    year = rep(2000:2010, each = n/(11*individuals)),
-    individual = rep(1:individuals, each = n/individuals)
-)
 
-# Fit a GAM model with individual-specific effects
-gam_model <- gam(latitude ~ s(month, k = 12) + s(year, k = 10) + s(individual, bs = "re"), data = data)
 
-# Summary of the model
-summary(gam_model)
+## 31 Jan CBAR MANUAL
 
-# Plot the partial effects
-par(mfrow = c(1, 3))
-plot(gam_model, select = 1, col = "blue", main = "Month Effect")
-plot(gam_model, select = 2, col = "green", main = "Year Effect")
-plot(gam_model, select = 3, col = "red", main = "Individual Effect")
+
+gg <- 
+    ggplot() +
+    
+    # # geom_tile(data = eov_test %>% subset(!is.na(val)),  aes(x = x, y = y, fill = factor(cut(val, breaks=zCuts, labels=zCuts[2:29])), group = date)) +
+    # geom_raster(data = eov_test %>% subset(!is.na(val)) ,
+    #             aes(x = x, y = y, fill = val, group = date), interpolate = TRUE) +
+    #             # aes(x = x, y = y, fill = factor(cut(val, zCuts)), group = date), interpolate = TRUE) +
+    # 
+    geom_contour_filled(data = eov_test %>% subset(!is.na(val)) ,
+                        aes(x = x, y = y, z = val, group = date), breaks = seq(6,34,1)) + 
+    
+    {
+        if (!is.null(tzcf_contour)) {
+            # add tzcf contour
+            geom_contour(data=eov_test, aes(x=x, y=y, z = val), colour = tzcf_color, linewidth = 1.25,
+                         breaks = c(tzcf_contour)) 
+        }
+    } +
+    
+    # # add tzcf contour
+    # geom_contour(data=eov_df, aes(x=x, y=y, z = val), colour = "white", linewidth = 1.25,
+    #              breaks = c(tzcf_contour)) +
+    
+    # add coast 
+    geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black") +
+    
+    {
+        if (cclme){
+            # geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = id), fill = 'gray75', alpha = 0.5)  # fyi, for long360 do not use id -- use group to group
+            geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = group), fill = 'gray75', alpha = 0.5)  
+        }
+    } +
+    
+    # add state borders
+    geom_sf(data = usa_360, color = "snow", fill = "black", size=0.5) +
+    
+    
+    {
+        if (eov =='chla'){
+            # scale_fill_stepsn(colours = c( "gray99", cpal[2:length(cpal)]),
+            scale_fill_gradientn(colours = c( "gray99", cpal[6:length(cpal)]),
+                                 breaks = cbar_breaks,
+                                 limits = cbar_limits,
+                                 na.value = 'snow',
+                                 name = "Chl \n(mg/m^3) \n ")
+        } else if (eov =='sst') {
+            
+            # scale_fill_manual("SST (°C) \n", na.translate = F,
+            #                   values = cpal[7:length(cpal)], 
+            #                   # limits = c(6,34),  drop = FALSE,
+            #                   na.value="transparent",
+            #                   labels = seq(6,34,1)
+            # )
+            # 
+            scale_fill_gradientn(colours = 
+                                     # cpal[12:length(cpal)],
+                                     # breaks=seq(10,25,2),
+                                     # limits = c(9.25,25),
+                                     cpal[11:length(cpal)],
+                                 
+                                 breaks=cbar_breaks, #seq(6,32,2),
+                                 limits = c(min(cbar_limits),max(cbar_limits)),
+                                 na.value = 'snow',
+                                 name = "SST (°C) \n")
+            
+        }
+    }
+
+
+gg + 
+    scale_fill_manual(values = cpal[7:length(cpal)], name = "SST (°C) \n", 
+                      # limits = c(6, 28),
+                      labels = seq(cbar_limits[1], cbar_limits[2], 1), drop = F, na.translate = F,
+                      guide = guide_legend(label.vjust=+1.2, barwidth = 1, barheight = 32,
+                                           frame.colour = "black", ticks.colour = "black", ncol =1, reverse=T)) +
+    theme(legend.key = element_rect(color="gray80", fill = 'white'))
+
+
+gg + scale_fill_gradientn(limits = c(6,34),
+                          colours= cpal[7:length(cpal)],
+                          values = seq(cbar_limits[1], cbar_limits[2], 1),
+                          breaks=seq(cbar_limits[1], cbar_limits[2], 1), labels=format(seq(cbar_limits[1], cbar_limits[2], 1)))
+
+gg + scale_fill_manual(drop=FALSE, values=cpal[7:length(cpal)], na.value="#EEEEEE", name="SST (°C) \n",
+                       labels = seq(cbar_limits[1], cbar_limits[2], 1)) 
+
+
+# test <- eov_test %>%
+#     mutate(ctry = cut(val, breaks = c(zCuts), labels = cpal[7:length(cpal)])) %>%
+#     mutate(ctryx = factor(ctry))
+#     
+# test |> head()
+# 
+# ggg <- ggplot() + geom_raster(data = test %>% subset(!is.na(val)) , aes(x = x, y = y, fill = ctry, group = date), interpolate = TRUE) +
+#     scale_fill_manual(values = test$ctryx, drop=F)
+gg + scale_fill_brewer(palette = "Spectral", drop = FALSE)
+
+gg + scale_fill_distiller(
+    super = metR::ScaleDiscretised,
+    palette = "Spectral",
+   # palette = cpal[7:length(cpal)],
+   # palette = rev(Spectral.colors(28)),
+   limits = c(6, 34))
+
+gg +   scale_fill_gradient(low="lightblue", high="red",
+                           breaks=seq(6,34,1),
+                           limits=c(6, 34), guide = "legend") 
+
+
+Spectral.colors <- colorRampPalette(RColorBrewer::brewer.pal(11, "Spectral"))
+gg +   scale_fill_manual(values = rev(Spectral.colors(28)),drop=TRUE,
+                         # limits = c(6, 34),
+                         )
+
+
+gg + scale_fill_gradientn(
+    colours = cpal[7:length(cpal)],
+    breaks =seq(6, 34, 1), limits = c(6, 34))
+
+
+
+ggplot() +
+    
+    # geom_tile(data = eov_test %>% subset(!is.na(val)),  aes(x = x, y = y, fill = factor(cut(val, breaks=zCuts, labels=zCuts[2:29])), group = date)) +
+    geom_contour_filled(data = eov_test %>% subset(!is.na(val)) ,
+                aes(x = x, y = y, z = val, group = date), breaks = seq(6,34,1)) + 
+    
+gg +
+    theme(plot.title = element_text(size = 10,hjust = 0.5)) +
+    scale_fill_manual(values = cpal[7:length(cpal)],drop=FALSE) +
+    
+    theme(plot.title = element_text(size = 10,hjust = 0.5)) +
+    # scale_fill_manual(values = heat.colors(16),drop=FALSE) +
+    guides(fill = guide_colorsteps(barheight = unit(par("pin")[2], "in")))
+    
+
+gg + 
+    scale_fill_manual(values = cpal[7:length(cpal)], name = "SST (°C) \n", 
+                      # limits = c(6, 28),
+                      labels = seq(6, 34, 1), drop = F, na.translate = F,
+                      guide = guide_legend(label.vjust=+1.2, barwidth = 1, barheight = 32,
+                                           frame.colour = "black", ticks.colour = "black", ncol =1, reverse=T)) +
+    theme(legend.key = element_rect(color="gray80", fill = 'white'))
+
+
+# bottom lege
+    guides(fill = guide_colorsteps(direction = "horizontal",
+                                   barwidth = unit(par("pin")[1], "in"))) +
+    theme(legend.position = "bottom")
+    
+    
+    
+    
+## MASK GoC
+    
+# set goc mask
+pl_2 <- rbind(c(-110, 23.75), c(-122, 40), c(-110, 40), c(-110, 23.75))
+pl_2 <- SpatialPolygons(list(Polygons(list(Polygon(pl_2)), 1)))
+
+# goc_mask <- st_as_sf(goc_df,coords = c("lon", "lat"), 
+#                      crs = 4326, agr = "constant")
+# 
+# goc_mask <- st_as_sf(pl_2, fill=TRUE, plot =FALSE)
+# goc_mask <- st_as_sf(goc_mask, wkt = "geom", crs = 4326)
+# st_set_crs(goc_mask, 4326)
+# # goc_mask_360 = st_shift_longitude(goc_mask)
+
+## THIS WORKS!!!
+ras_masked <- mask(ras_subset[[1]], goc_mask, inverse=T)
+plot(ras_masked)
+# test <- crop(ras_subset[[1]],pl_2)
+# plot(test)
+
+library(sf)
+library(dplyr)
+
+goc_df <- data.frame(id = 1,
+                      lon = c(make360(-110), make360(-122), make360(-110), make360(-110)),
+                      lat = c(23.75, 40, 40, 23.75)) %>%
+    sf::st_as_sf(coords = c('lon','lat'), 
+                 # this part is important!
+                 crs = 4326) %>% 
+    rename(geo_col = geometry)
+
+# to double check a visual overview; looks legit...
+mapview::mapview(goc_df)
+
+
+
+
+## cbar masked
+test + scale_fill_manual(values = cpal[9:length(cpal)], name = "SST (°C) \n", 
+                         labels = c(seq(4,29, 1),"≥ 30"), drop = F, na.translate = F,
+                         guide = guide_legend(label.vjust=+1.2, barwidth = 1, #barheight = 32,
+                                              frame.colour = "black", ticks.colour = "black", ncol =1, reverse=T)) 
