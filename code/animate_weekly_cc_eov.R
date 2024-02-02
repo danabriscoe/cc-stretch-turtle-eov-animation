@@ -4,7 +4,7 @@
 #' date: "`r Sys.Date()`"
 #' output: html_document
 #' ---
-#' 
+#'
 
 ## ----load-libraries-----------------------------------------------------------------------------------------------------
 # Load Libraries ---
@@ -34,9 +34,9 @@ files <- list.files('~/Downloads/batch/', pattern = "All.csv", recursive=T, full
 raw_data <- rbindlist(lapply(files, fread)) %>%
     dplyr::select('Platform ID No.', 'Latitude', 'Longitude', 'Loc. quality', 'Loc. date') %>%
     rename(id = 1,
-           lat = 2, 
-           lon = 3, 
-           loc_quality = 4, 
+           lat = 2,
+           lon = 3,
+           loc_quality = 4,
            date = 5
     ) %>%
     mutate(date = as.POSIXct(date, format= "%m/%d/%Y %H:%M:%S", tz="UTC")) %>%
@@ -48,19 +48,19 @@ head(raw_data)
 daily_avg_data <- raw_data %>%
     mutate(date = as.Date(date)) %>%
     group_by(id, date) %>%
-    summarise(lat = mean(lat), 
+    summarise(lat = mean(lat),
               lon = mean(lon))
 
 # head(daily_avg_data)
 
 
-#' 
+#'
 ## ----load-eov-ncs-------------------------------------------------------------------------------------------------------
 params <-list()
 
 # Set param to run
-params$eov = 'sst'
-# params$eov = 'ssta'
+# params$eov = 'sst'
+params$eov = 'ssta'
 # params$eov = 'chla'
 # params$eov = 'sla_uv'
 
@@ -97,26 +97,37 @@ if(params$eov == 'sst'){
     cbar_breaks = seq(4, 30, 1)
     cbar_limits = c(4, 31)
     # cbar_limits <- c(6,31)
+    cbar_int <- 1
     
     tzcf_contour = 18
+    tzcf_color = 'white'
     
     smooth_rainbow <- khroma::colour("smooth rainbow")
     
     # cpal <- c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9)), "#9e2a2b", "firebrick4", "#540b0e")
     cpal <- c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9)), "#9e2a2b", "firebrick4")
     
+    zCuts <- seq(4,34,1)
     
 } else if(params$eov == 'ssta'){
     fdates <- ncs %>% 
         str_split(., "_") %>%
-        purrr::map_chr(~ pluck(., 5)) %>%
+        purrr::map_chr(~ pluck(., 4)) %>%
         substr(., start=1, stop=10)
     
     # limits = c(5,35)
     
     tzcf_contour <- NA
+    tzcf_color = NA
     
-    brewer.pal(n = 8, name = "RdBu")
+    cbar_breaks <- seq(-5.5,6,0.5)
+    cbar_limits <- c(-5.5,6)
+    cbar_int <- 0.5
+    
+    # brewer.pal(n = 8, name = "RdBu")
+    cpal <- rev(c("#48090B", "#540b0e", rev(brewer.pal(9, "YlOrRd")),"white", brewer.pal(9, "Blues"), "#06224C", "#031126", "#020813"))
+    
+    zCuts <- seq(-5.5,6,0.5)
     
 } else if(params$eov == 'chla'){
     ncs <- list.files(params$nc_path, pattern = "NRTchla", full.names=T)
@@ -129,13 +140,17 @@ if(params$eov == 'sst'){
     
     cbar_breaks <- c(0.2, 2, 10, 20)
     cbar_limits <- limits <- c(0,20)
+    cbar_int <- 0.1
     
     tzcf_contour = 0.2
+    tzcf_color = 'gray10'
+    
     
     cpal <- oce::oceColorsChlorophyll(20)
     
     # cpal <- smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9))
     # cpal <- colorRampPalette(chl_colors)(25)
+    zCuts <- seq(0,20,1)
 }
 
 
@@ -209,6 +224,10 @@ if(params$eov == 'sst'){
     nc_dates <- ncIn %>% 
         map(~parseDT(., idx = 6, start=29, stop = 38, format="%Y-%m-%d")) %>%
         unlist() %>% as.Date() #%>%
+} else if(params$eov == 'ssta'){
+    nc_dates <- ncIn %>% 
+        map(~parseDT(., idx = 6, start=14, stop = 23, format="%Y-%m-%d")) %>%
+        unlist() %>% as.Date() #%>%
 }
 names(ras) <- nc_dates
 
@@ -264,6 +283,8 @@ if(params$eov == 'sst'){
 } else if(params$eov == 'chla'){
     eov_df <- g_df_subset %>% mutate(date = as.Date(date)) #%>%
     # mutate(val = log(val)) #%>% filter(date == '2023-07-11')
+} else if(params$eov == 'ssta'){
+    eov_df <- g_df_subset %>% mutate(date = as.Date(date))
 }
 
 turtles_df = turtlesgeo %>% filter(date %in% nc_dates) #%>% filter(id == "243197")
@@ -299,16 +320,21 @@ if(save_ext == 'gif'){
     )
 }
 
+# 
+# 
+# library(gganimate)
+# library(gifski)
+# 
+# #     # )
 
-
-library(gganimate)
-library(gifski)
-
-#     # )
-
-eov='sst'
+# eov='sst'
+eov = params$eov
 cclme = TRUE
-zCuts <- seq(4,34,1)
+
+# if(params$eov == 'sst'){
+#     zCuts <- seq(4,34,1)
+# } else if(params$eov == 'chl')
+
 
 # ## fun innerds
 # mapdata <- map_data('world', wrap=c(-25,335), ylim=c(-55,75)) %>%
@@ -323,15 +349,15 @@ usa_360 = st_shift_longitude(usa)
 # p_barheight = 28.5 #38
 # p_plot_text_size = 14
 
-if(eov == 'sst'){
-    tzcf_contour = 18 #17
-    tzcf_color = 'white'
-} else if(eov == 'chla'){
-    tzcf_contour = 0.2
-    tzcf_color = 'gray10'
-} else if(eov == 'ssta'){
-    tzcf_contour = NULL
-}
+# if(eov == 'sst'){
+#     tzcf_contour = 18 #17
+#     tzcf_color = 'white'
+# } else if(eov == 'chla'){
+#     tzcf_contour = 0.2
+#     tzcf_color = 'gray10'
+# } else if(eov == 'ssta'){
+#     tzcf_contour = NULL
+# }
 
 
 
@@ -382,7 +408,7 @@ gg_static <- get_static_plot(
 if(params$eov == 'sst'){
     title_eov <- 'sea surface temperature (SST)'
     subtitle_text_col <- 'snow'
-        caption_iso <- 'The white line represents the 18°C isotherm'
+        caption_iso <- 'The white line represents the 18°C isotherm. '
         eov_source <- 'NOAA Coral Reef Watch 5km Daily SST'
 } else if(params$eov == 'chla'){
     title_eov <- 'chlorophyll-a (Chl)'
@@ -394,6 +420,11 @@ if(params$eov == 'sst'){
     subtitle_text_col <- 'gray8'
         caption_iso <- 'The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
         eov_source <- 'Calculated from Near Real-Time Geostrohic Current (u, v) 0.2 degrees spatial res, Daily'
+} else if(params$eov == 'ssta'){
+    title_eov <- 'sea surface temperature anomaly (SSTA)'
+    subtitle_text_col <- 'gray8'
+    caption_iso <- ''
+    eov_source <- 'NOAA Coral Reef Watch 5km Daily SSTA'
 }
 
 
@@ -427,7 +458,7 @@ weekly_tracks_plot_list <-
             
         ## for discrete color pal ---        
             geom_contour_filled(data = eov_test %>% subset(!is.na(val)) ,
-                                    aes(x = x, y = y, z = val, group = date), breaks = seq(cbar_limits[1],cbar_limits[2],1)) + 
+                                    aes(x = x, y = y, z = val, group = date), breaks = seq(cbar_limits[1],cbar_limits[2],cbar_int)) + 
                 
             
             {
@@ -482,6 +513,14 @@ weekly_tracks_plot_list <-
                                       labels = seq(4,30, 1), drop = F, na.translate = F,
                                       guide = guide_legend(label.vjust=+1.2, barwidth = 1, #barheight = 32,
                                                            frame.colour = "black", ticks.colour = "black", ncol =1, reverse=T)) 
+                    
+                    
+                } else if (eov =='ssta') {
+                    
+                    scale_fill_manual(values = cpal[2:length(cpal)], name = "SSTA (°C) \n", 
+                                      labels = seq(-5.5,6, 0.5), drop = F, na.translate = F,
+                                      guide = guide_legend(label.vjust=+1.2, barwidth = 1, #barheight = 32,
+                                                           frame.colour = "black", ticks.colour = "black", ncol =1, reverse=F)) 
                     
                     
                 }
@@ -542,14 +581,14 @@ weekly_tracks_plot_list <-
             # anim_trial = gg_static + transition_time(date) +    # fyi, this requires install of transformr (devtools::install_github("thomasp85/transformr"))
                 labs(title = str_c("STRETCH Weekly turtle movements (n=25) with ", title_eov),
                      # subtitle = "Date: {frame_time}", 
-                     caption = str_c("\n Raw tracking data from ARGOS averaged to 1 weekly location per turtle (circles)\n", "California Current Large Marine Ecosystem (CCLME) shaded in gray\n", caption_iso, ". ","Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
+                     caption = str_c("\n Raw tracking data from ARGOS averaged to 1 weekly location per turtle (circles)\n", "California Current Large Marine Ecosystem (CCLME) shaded in gray\n", caption_iso, "Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
                 # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
                 theme(
                     # element_text(size=p_plot_text_size),
                     plot.title = element_text(size=plot_params$title_size, face="bold", margin=margin(t=20,b=0), hjust=0.03),
                     plot.subtitle = element_text(size = plot_params$subtitle_size, face="bold", margin=margin(t=30,b=-30), hjust=0.025, color=subtitle_text_col),
                     plot.caption = element_text(size=plot_params$caption_size),
-                    legend.key = element_rect(color="gray80", fill = 'white'), legend.key.size=unit(13,"point"),
+                    legend.key = element_rect(color="snow", fill = 'white'), legend.key.size=unit(13,"point"),
                     plot.margin = unit(c(0.75, 0, 0.5, 0), "cm")) +
                 
                 NULL
