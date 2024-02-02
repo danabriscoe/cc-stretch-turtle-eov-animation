@@ -90,7 +90,8 @@ if(params$eov == 'sst'){
     
     limits = c(5,35)
     cbar_breaks = seq(4, 34, 1)
-    cbar_limits = c(4, 34)
+    # cbar_limits = c(4, 34)
+    cbar_limits <- c(6,31)
     tzcf_contour = 17
     
     smooth_rainbow <- khroma::colour("smooth rainbow")
@@ -255,10 +256,11 @@ release_loc = data.frame(lat=39.315, lon=213.9333)
 p_barheight = 28.5 #38
 p_plot_text_size = 14
 
+
 # >>>>>>>> TO UPDATE FUNCT WITH THIS INFO
-# save_ext <- 'gif'
-# # save_ext <- 'mp4'
-# 
+save_ext <- 'gif'
+# save_ext <- 'mp4'
+
 # if(save_ext == 'mp4'){
 #     plot_params <- list(
 #         turtle_pt_size = 3.25,
@@ -269,16 +271,61 @@ p_plot_text_size = 14
 #         caption_size = 14
 #     )  
 # }
-# if(save_ext == 'gif'){
-#     plot_params <- list(
-#         turtle_pt_size = 5.25,
-#         barheight = 34,
-#         plot_text_size = 22,
-#         title_size = 24,
-#         subtitle_size = 22,
-#         caption_size = 20
-#     )
-# }
+if(save_ext == 'gif'){
+    plot_params <- list(
+        turtle_pt_size = 2,
+        barheight = 24,
+        plot_text_size =12,
+        title_size = 14,
+        subtitle_size = 14,
+        caption_size = 12
+    )
+}
+
+
+
+library(gganimate)
+library(gifski)
+
+#     # )
+
+eov='sst'
+cclme = TRUE
+zCuts <- seq(4,34,1)
+
+## fun innerds
+mapdata <- map_data('world', wrap=c(-25,335), ylim=c(-55,75)) %>%
+    filter(long >= 120 & long <= 270 & lat >= 15 & lat <=80) 
+
+library(sf)
+usa <- st_as_sf(maps::map("state", fill=TRUE, plot =FALSE))
+usa <- st_as_sf(usa, wkt = "geom", crs = 4326)
+st_set_crs(usa, 4326)
+usa_360 = st_shift_longitude(usa)
+
+# p_barheight = 28.5 #38
+# p_plot_text_size = 14
+
+if(eov == 'sst'){
+    tzcf_contour = 18 #17
+    tzcf_color = 'white'
+} else if(eov == 'chla'){
+    tzcf_contour = 0.2
+    tzcf_color = 'gray10'
+} else if(eov == 'ssta'){
+    tzcf_contour = NULL
+}
+
+
+
+
+# -----------------------------------------------------------------------------------------------
+release_loc = data.frame(lat=39.315, lon=213.9333)
+
+# p_barheight = 28.5 #38
+# p_plot_text_size = 14
+
+
 ## Functionalized version ---------------------------
 # test_cpal = c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9)), "#9e2a2b", "firebrick4", "#540b0e", "#540b0e")
 
@@ -314,79 +361,11 @@ gg_static <- get_static_plot(
 )
 
 
-
-
-library(gganimate)
-library(gifski)
-
-#     # )
-
-eov='sst'
-cclme = TRUE
-zCuts <- seq(4,34,1)
-
-## fun innerds
-mapdata <- map_data('world', wrap=c(-25,335), ylim=c(-55,75)) %>%
-    filter(long >= 120 & long <= 270 & lat >= 15 & lat <=80) 
-
-library(sf)
-usa <- st_as_sf(maps::map("state", fill=TRUE, plot =FALSE))
-usa <- st_as_sf(usa, wkt = "geom", crs = 4326)
-st_set_crs(usa, 4326)
-usa_360 = st_shift_longitude(usa)
-
-p_barheight = 28.5 #38
-p_plot_text_size = 14
-
-if(eov == 'sst'){
-    tzcf_contour = 18 #17
-    tzcf_color = 'white'
-} else if(eov == 'chla'){
-    tzcf_contour = 0.2
-    tzcf_color = 'gray10'
-} else if(eov == 'ssta'){
-    tzcf_contour = NULL
-}
-
-
-
-
-# -----------------------------------------------------------------------------------------------
-release_loc = data.frame(lat=39.315, lon=213.9333)
-
-# p_barheight = 28.5 #38
-# p_plot_text_size = 14
-
-
-# >>>>>>>> TO UPDATE FUNCT WITH THIS INFO
-save_ext <- 'gif'
-# save_ext <- 'mp4'
-
-# if(save_ext == 'mp4'){
-#     plot_params <- list(
-#         turtle_pt_size = 3.25,
-#         barheight = 26.5, #38
-#         plot_text_size = 14,
-#         title_size = 18,
-#         subtitle_size = 16,
-#         caption_size = 14
-#     )  
-# }
-if(save_ext == 'gif'){
-    plot_params <- list(
-        turtle_pt_size = 2,
-        barheight = 24,
-        plot_text_size =12,
-        title_size = 14,
-        subtitle_size = 14,
-        caption_size = 12
-    )
-}
 ## Animate Tracks by Date ----- ----------------
 if(params$eov == 'sst'){
     title_eov <- 'sea surface temperature (SST)'
     subtitle_text_col <- 'snow'
-        caption_iso <- 'The white line represents the 18°C isotherm '
+        caption_iso <- 'The white line represents the 18°C isotherm'
         eov_source <- 'NOAA Coral Reef Watch 5km Daily SST'
 } else if(params$eov == 'chla'){
     title_eov <- 'chlorophyll-a (Chl)'
@@ -479,7 +458,7 @@ weekly_tracks_plot_list <-
                     
                     ## discrete cpal (manual range set)
                     scale_fill_manual(values = cpal[5:length(cpal)], name = "SST (°C) \n", 
-                                      labels = seq(cbar_limits[1], cbar_limits[2], 1), drop = F, na.translate = F,
+                                      labels = c("≤ 6",seq(7,33, 1),"≥ 32"), drop = F, na.translate = F,
                                       guide = guide_legend(label.vjust=+1.2, barwidth = 1, #barheight = 32,
                                                            frame.colour = "black", ticks.colour = "black", ncol =1, reverse=T)) 
                     
@@ -517,7 +496,7 @@ weekly_tracks_plot_list <-
             geom_point(data=release_loc, aes(x=lon, y=lat), fill = "lightgray",
                        color = "black", shape = 4, size = 5.5) +
             
-            labs(x = "\n \n Longitude \n", y = "\n \n Latitude \n \n ") +
+            labs(x = "\n Longitude \n", y = "\n \n Latitude \n ") +
             labs(subtitle = str_c("Week of: ", format(dates[i], "%b-%d-%Y"))) +
             # theme(legend.position = "none") +
             
@@ -531,6 +510,9 @@ weekly_tracks_plot_list <-
             guides(fill = guide_legend(title = 'SST (°C)', ncol=1, reverse=T, barheight = plot_params$barheight, limits = cbar_breaks,
                                        ticks = TRUE)) + 
             
+            # guides(fill = guide_colorsteps(direction = "horizontal",
+            #                                    barwidth = unit(par("pin")[1], "in"))) +
+            # theme(legend.position = "bottom") +
                 
             # facet_wrap(~date) +
             
@@ -539,7 +521,7 @@ weekly_tracks_plot_list <-
             # anim_trial = gg_static + transition_time(date) +    # fyi, this requires install of transformr (devtools::install_github("thomasp85/transformr"))
                 labs(title = str_c("STRETCH Weekly turtle movements (n=25) with ", title_eov),
                      # subtitle = "Date: {frame_time}", 
-                     caption = str_c("\n \n Raw tracking data from ARGOS averaged to 1 weekly location per turtle (circles) \n ", caption_iso, "\nCalifornia Current Large Marine Ecosystem (CCLME) shaded in gray\n","Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
+                     caption = str_c("\n Raw tracking data from ARGOS averaged to 1 weekly location per turtle (circles)\n", "California Current Large Marine Ecosystem (CCLME) shaded in gray\n", caption_iso, ". ","Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
                 # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
                 theme(
                     # element_text(size=p_plot_text_size),
@@ -565,9 +547,9 @@ names(weekly_tracks_plot_list) <- wk_names
 save_figs = TRUE
 
 if(save_figs){
-    lapply(seq(1:length(wk_names)), function(i) {ggsave(weekly_tracks_plot_list[[i]], 
+    lapply(seq(1:length(wk_names)), function(i) { ggsave(weekly_tracks_plot_list[[i]], 
                                                          file = str_c('./anim_figs/', i, "_", dates[i], "_", eov, "_tracks.png"), 
-                                                         width=12, 
+                                                         width=14, 
                                                          # height=8.5,   # comment out height to get auto aspect ratio set!
                                                          bg = 'white')
     })
@@ -588,6 +570,21 @@ pfiles <- plot_files[order(basename(plot_files))]
 
 library(gtools)
 pfiles <- mixedsort(pfiles)
+
+
+# #intermediate step to crop PNG file and reduce negative space
+# library(magick)
+# m_png <- lapply(seq(1:length(pfiles)), function(i) {image_border(image_trim(image_read(pfiles[i])), 
+#                       "white", "30x30")
+#                       })
+# lapply(seq(1:length(pfiles)), function(i) {image_write(image=m_png[[i]], str_c(pfiles[i]), format='png')})
+
+
+## use crop image source function ------
+source('code/crop_image.R')
+crop_image(pfiles)
+
+## --------------------------------------
 
 # Read the plots as image
 plots_list <- lapply(pfiles, image_read)
