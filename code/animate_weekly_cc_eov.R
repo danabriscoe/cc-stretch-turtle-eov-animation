@@ -535,7 +535,8 @@ weekly_tracks_plot_list <-
                     #                                        frame.colour = "black", ticks.colour = "black", ncol =1, reverse=F)) 
                     
                     scale_fill_gradientn(trans="log10", colours = cpal[11:length(cpal)], name = "Chl \n(mg/m^3) \n ",
-                                                breaks=c(0.03, 0.1, 0.2, 0.4,  2, 10, 30), labels=format(c(0.03, 0.1, 0.2, 0.4,  2, 10, 30)))
+                                         limits = c(0.03, 30),
+                                        breaks=c(0.03, 0.1, 0.2, 0.4,  2, 10, 30), labels=format(c(0.03, 0.1, 0.2, 0.4,  2, 10, 30)))
                     
                 } else if (eov =='sst') {
 
