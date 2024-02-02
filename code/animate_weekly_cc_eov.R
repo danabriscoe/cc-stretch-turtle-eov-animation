@@ -101,6 +101,8 @@ if(params$eov == 'sst'){
     
     tzcf_contour = 18
     tzcf_color = 'white'
+        
+    tcms_color = "#FFFCF2"
     
     smooth_rainbow <- khroma::colour("smooth rainbow")
     
@@ -119,6 +121,8 @@ if(params$eov == 'sst'){
     
     tzcf_contour <- NA
     tzcf_color = NA
+    
+    tcms_color = "gray40"
     
     cbar_breaks <- seq(-5.5,6,0.5)
     cbar_limits <- c(-5.5,6)
@@ -316,7 +320,7 @@ if(save_ext == 'gif'){
         plot_text_size =12,
         title_size = 14,
         subtitle_size = 14,
-        caption_size = 12
+        caption_size = 12-1.5
     )
 }
 
@@ -330,6 +334,7 @@ if(save_ext == 'gif'){
 # eov='sst'
 eov = params$eov
 cclme = TRUE
+tcms = TRUE
 
 # if(params$eov == 'sst'){
 #     zCuts <- seq(4,34,1)
@@ -479,7 +484,7 @@ weekly_tracks_plot_list <-
             {
                 if (cclme){
                     # geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = id), fill = 'gray75', alpha = 0.5)  # fyi, for long360 do not use id -- use group to group
-                    geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = group), fill = 'gray75', alpha = 0.5)  
+                    geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = group), fill = 'gray85', alpha = 0.35)  
                 }
             } +
             
@@ -487,6 +492,15 @@ weekly_tracks_plot_list <-
             geom_sf(data = usa_360, color = "snow", fill = "black", size=0.5) +
             
             
+            # add tcms box
+            {
+                if (tcms){
+                    # geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = id), fill = 'gray75', alpha = 0.5)  # fyi, for long360 do not use id -- use group to group
+                    geom_rect(aes(xmin=225,xmax=243,ymin=25.25,ymax=35), colour=tcms_color,alpha=0, size=0.65) 
+                }
+            } +
+                
+                
             {
                 if (eov =='chla'){
                     # scale_fill_stepsn(colours = c( "gray99", cpal[2:length(cpal)]),
@@ -581,7 +595,11 @@ weekly_tracks_plot_list <-
             # anim_trial = gg_static + transition_time(date) +    # fyi, this requires install of transformr (devtools::install_github("thomasp85/transformr"))
                 labs(title = str_c("STRETCH Weekly turtle movements (n=25) with ", title_eov),
                      # subtitle = "Date: {frame_time}", 
-                     caption = str_c("\n Raw tracking data from ARGOS averaged to 1 weekly location per turtle (circles)\n", "California Current Large Marine Ecosystem (CCLME) shaded in gray\n", caption_iso, "Ship release location (X) \n Data source: ", eov_source," \n Dana Briscoe")) +
+                     caption = str_c("\n Raw tracking data from ARGOS averaged to 1 weekly location per turtle (circles)\n\n", 
+                                     "California Current Large Marine Ecosystem (CCLME) shaded in light gray\n", 
+                                     "Thermal Corridor region (gray box)\n",
+                                     caption_iso, "Ship release location (X)\n",
+                                     "\n Data source: ", eov_source," \n Dana Briscoe")) +
                 # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
                 theme(
                     # element_text(size=p_plot_text_size),
