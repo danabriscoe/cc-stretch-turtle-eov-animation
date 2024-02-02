@@ -98,6 +98,7 @@ if(params$eov == 'sst'){
     cbar_limits = c(4, 31)
     # cbar_limits <- c(6,31)
     cbar_int <- 1
+    cbar_title <- 'SST (°C) \n'
     
     tzcf_contour = 18
     tzcf_color = 'white'
@@ -127,6 +128,7 @@ if(params$eov == 'sst'){
     cbar_breaks <- seq(-5.5,6,0.5)
     cbar_limits <- c(-5.5,6)
     cbar_int <- 0.5
+    cbar_title <- 'SST (°C)\n'
     
     # brewer.pal(n = 8, name = "RdBu")
     cpal <- rev(c("#48090B", "#540b0e", rev(brewer.pal(9, "YlOrRd")),"white", brewer.pal(9, "Blues"), "#06224C", "#031126", "#020813"))
@@ -145,15 +147,21 @@ if(params$eov == 'sst'){
     cbar_breaks <- c(0.2, 2, 10, 20)
     cbar_limits <- limits <- c(0,20)
     cbar_int <- 0.1
+    cbar_title <- 'Chl \n(mg/m^3) \n'
     
-    tzcf_contour = 0.2
-    tzcf_color = 'gray10'
+    tzcf_contour = NA #0.2
+    tzcf_color = NA #'gray10'
+    
+    tcms_color = "#FFFCF2"
+        
+    smooth_rainbow <- khroma::colour("smooth rainbow")
+    
+    # cpal <- c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9)), "#9e2a2b", "firebrick4", "#540b0e")
+    cpal <- c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9)), "#9e2a2b", "firebrick4")
     
     
-    cpal <- oce::oceColorsChlorophyll(20)
-    
-    # cpal <- smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9))
-    # cpal <- colorRampPalette(chl_colors)(25)
+    # cpal <- oce::oceColorsChlorophyll(20)
+
     zCuts <- seq(0,20,1)
 }
 
@@ -416,10 +424,10 @@ if(params$eov == 'sst'){
     subtitle_text_col <- 'snow'
         caption_iso <- 'The white line represents the 18°C isotherm. '
         eov_source <- 'NOAA Coral Reef Watch 5km Daily SST'
-} else if(params$eov == 'chla'){
+} else if(params$eov == 'chlaWeekly'){
     title_eov <- 'chlorophyll-a (Chl)'
     subtitle_text_col <- 'gray8'
-        caption_iso <- 'The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
+        caption_iso <- '' #'The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
         eov_source <- 'VIIRS Near Real-Time, DINEOF Gap-Filled 9km Daily Chl Concentration'
 } else if(params$eov == 'current'){
     title_eov <- 'surface current flow'
@@ -456,16 +464,27 @@ weekly_tracks_plot_list <-
         # gg <- 
             ggplot() +
 
+               
         ## for continuous color pal---                    
             # # geom_tile(data = eov_test, 
             # geom_raster(data = eov_test,
             #             # aes(x = x, y = y, fill = val, group = date), interpolate = TRUE) +
             #             aes(x = x, y = y, fill = factor(cut(val, zCuts)), group = date), interpolate = TRUE) +
             
-        ## for discrete color pal ---        
-            geom_contour_filled(data = eov_test %>% subset(!is.na(val)) ,
-                                    aes(x = x, y = y, z = val, group = date), breaks = seq(cbar_limits[1],cbar_limits[2],cbar_int)) + 
-                
+        {        
+            if (eov =='sst' | eov == 'ssta'){        
+                ## for discrete color pal ---        
+                geom_contour_filled(data = eov_test %>% subset(!is.na(val)) ,
+                                    aes(x = x, y = y, z = val, group = date), breaks = seq(cbar_limits[1],cbar_limits[2],cbar_int)) #+ 
+            } else if (eov =='chlaWeekly') {  
+                ## for continuous color pal---                    
+                # geom_tile(data = eov_test,
+                geom_raster(data = eov_test,
+                            aes(x = x, y = y, fill = val, group = date), interpolate = TRUE) #+
+                            # aes(x = x, y = y, fill = factor(cut(val, zCuts)), group = date), interpolate = TRUE)
+            }
+        }  +      
+                        
             
             {
                 if (!is.null(tzcf_contour)) {
@@ -503,13 +522,21 @@ weekly_tracks_plot_list <-
                 
                 
             {
-                if (eov =='chla'){
-                    # scale_fill_stepsn(colours = c( "gray99", cpal[2:length(cpal)]),
-                    scale_fill_gradientn(colours = c( "gray99", cpal[6:length(cpal)]),
-                                         breaks = cbar_breaks,
-                                         limits = cbar_limits,
-                                         na.value = 'snow',
-                                         name = "Chl \n(mg/m^3) \n ")
+                if (eov =='chlaWeekly'){
+                    # # # scale_fill_stepsn(colours = c( "gray99", cpal[2:length(cpal)]),
+                    # # scale_fill_gradientn(colours = c( "gray99", cpal[6:length(cpal)]),
+                    # #                      breaks = cbar_breaks,
+                    # #                      limits = cbar_limits,
+                    # #                      na.value = 'snow',
+                    # #                      name = "Chl \n(mg/m^3) \n ")
+                    # scale_fill_manual(values = cpal[2:length(cpal)], name = "Chl \n(mg/m^3) \n ", 
+                    #                   labels = cbar_breaks, drop = F, na.translate = F,
+                    #                   guide = guide_legend(label.vjust=+1.2, barwidth = 1, #barheight = 32,
+                    #                                        frame.colour = "black", ticks.colour = "black", ncol =1, reverse=F)) 
+                    
+                    scale_fill_gradientn(trans="log10", colours = cpal[11:length(cpal)], name = "Chl \n(mg/m^3) \n ",
+                                                breaks=c(0.03, 0.1, 0.2, 0.4,  2, 10, 30), labels=format(c(0.03, 0.1, 0.2, 0.4,  2, 10, 30)))
+                    
                 } else if (eov =='sst') {
 
                     # scale_fill_manual("SST (°C) \n", na.translate = F,
@@ -578,19 +605,20 @@ weekly_tracks_plot_list <-
             theme_minimal() + theme(text=element_text(size=plot_params$plot_text_size)) +
             # # coord_sf(xlim = c(make360(-160), make360(-140)), ylim = c(35, 45), expand = FALSE, crs = st_crs(4326)) +
             coord_sf(xlim = c(make360(e[1]+1), make360(e[2])), ylim = c(e[3], e[4]), expand = FALSE, crs = st_crs(4326)) +
-            # guides(fill = guide_colourbar(
-            #     barheight = plot_params$barheight,
-            #     ticks = TRUE)
-            # ) + 
-            guides(fill = guide_legend(title = 'SST (°C)', ncol=1, reverse=T, barheight = plot_params$barheight, limits = cbar_breaks,
-                                       ticks = TRUE)) + 
-            
-            # guides(fill = guide_colorsteps(direction = "horizontal",
-            #                                    barwidth = unit(par("pin")[1], "in"))) +
-            # theme(legend.position = "bottom") +
-                
-            # facet_wrap(~date) +
-            
+            # # guides(fill = guide_colourbar(
+            # #     barheight = plot_params$barheight,
+            # #     ticks = TRUE)
+            # # ) + 
+            # guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, barheight = plot_params$barheight, limits = cbar_breaks,
+            #                            ticks = TRUE)) + 
+            # 
+            # # guides(fill = guide_colorsteps(direction = "horizontal",
+            # #                                    barwidth = unit(par("pin")[1], "in"))) +
+            # # theme(legend.position = "bottom") +
+            #     
+            # # facet_wrap(~date) +
+            # 
+
                 
           
             # anim_trial = gg_static + transition_time(date) +    # fyi, this requires install of transformr (devtools::install_github("thomasp85/transformr"))
@@ -598,7 +626,7 @@ weekly_tracks_plot_list <-
                      # subtitle = "Date: {frame_time}", 
                      caption = str_c("\n Raw tracking data from ARGOS averaged to 1 weekly location per turtle (circles)\n\n", 
                                      "California Current Large Marine Ecosystem (CCLME) shaded in light gray\n", 
-                                     "Thermal Corridor region (gray box)\n",
+                                     "Thermal Corridor region (box)\n",
                                      caption_iso, "Ship release location (X)\n",
                                      "\n Data source: ", eov_source," \n Dana Briscoe")) +
                 # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
@@ -610,6 +638,20 @@ weekly_tracks_plot_list <-
                     legend.key = element_rect(color="snow", fill = 'white'), legend.key.size=unit(13,"point"),
                     plot.margin = unit(c(0.75, 0, 0.5, 0), "cm")) +
                 
+                
+                {        
+                    if (eov =='sst' | eov == 'ssta'){   
+                        guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, barheight = plot_params$barheight, limits = cbar_breaks,
+                                                   ticks = TRUE)) 
+                    } else if (eov == 'chlWeekly') {
+                        guides(fill = guide_colourbar(
+                                barheight = plot_params$barheight+16,
+                                ticks = TRUE)
+                            )
+                        # make_fullsize()
+                    }
+                } + 
+                make_fullsize()+
                 NULL
             # # +
             #     theme(legend.key = element_rect(color="gray80", fill = 'white'))

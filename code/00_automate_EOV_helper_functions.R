@@ -192,6 +192,20 @@ get_cclme_df <- function(){
 }
 
 
+make_fullsize <- function() structure("", class = "fullsizebar")
+
+ggplot_add.fullsizebar <- function(obj, g, name = "fullsizebar") {
+    h <- ggplotGrob(g)$heights
+    panel <- which(grid::unitType(h) == "null")
+    panel_height <- unit(1, "npc") - sum(h[-panel])
+    
+    g + 
+        guides(fill = guide_colorbar(barheight = panel_height,
+                                     title.position = "top")) +
+        theme(legend.title = element_text(angle = 0, hjust = 0.5))
+}
+
+
 make180 <- function(lon){
     isnot360<-min(lon)<0
     if (!isnot360) {

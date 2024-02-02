@@ -2051,6 +2051,32 @@ mapview::mapview(goc_df)
 
 ## cbar masked
 test + scale_fill_manual(values = cpal[9:length(cpal)], name = "SST (°C) \n", 
-                         labels = c(seq(4,29, 1),"≥ 30"), drop = F, na.translate = F,
+                         labels = brks2, drop = F, na.translate = F,
                          guide = guide_legend(label.vjust=+1.2, barwidth = 1, #barheight = 32,
                                               frame.colour = "black", ticks.colour = "black", ncol =1, reverse=T)) 
+
+cpal <- c(smooth_rainbow(length(brks2), range = c(0, 0.9)), "#9e2a2b", "firebrick4")
+brks2 = c(0.03, 0.1, 0.2, 0.4,  2, 10, 30)
+test + scale_fill_gradientn(limits = c(0.01,20), #trans = "log",
+                            colours= cpal[11:length(cpal)],
+                            # values = brks2
+                            breaks=brks2, labels=format(brks2)
+                            )
+
+## THIS WORKS!!!!! ---------
+brks2 = c(0.03, 0.1, 0.2, 0.4,  2, 10, 30)
+test + scale_fill_gradientn(trans="log10", colours = cpal[11:length(cpal)],
+                            breaks=brks2, labels=format(brks2))
+## -------
+
+# library(scales)
+# brks2 = c(seq(0.03,0.1, 0.005), 0.2, 0.3, 0.4, 1, 2, 6, 10, 20, 30)
+# test + scale_fill_gradientn(name="..",
+#                             limits=c(0,30),
+#                             breaks=brks2,
+#                             values = brks2,#these are percentage, for example, to get color red, you need to reach 1 (100%) of high_f
+#                             colours=cpal[1:length(cpal)])
+
+test + scale_fill_distiller(palette= "Spectral", direction=-1,
+                            values = brks2,
+                            limits = c(0.01, 30))
