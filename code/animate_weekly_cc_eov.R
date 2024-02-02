@@ -60,8 +60,8 @@ params <-list()
 
 # Set param to run
 # params$eov = 'sst'
-params$eov = 'ssta'
-# params$eov = 'chla'
+# params$eov = 'ssta'
+params$eov = 'chlaWeekly'
 # params$eov = 'sla_uv'
 
 if(params$eov == 'sst'){
@@ -70,9 +70,9 @@ if(params$eov == 'sst'){
 } else if (params$eov == "ssta"){
     params$nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
     params$varname <- "ssta_dhw_5km"
-} else if (params$eov == "chla"){
+} else if (params$eov == "chlaWeekly"){
     params$nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
-    params$varname <- params$eov  # special case. filename uses 'chla' and not 'chlor_a', which is the varname
+    params$varname <- "chlaWeekly" #params$eov  # special case. filename uses 'chla' and not 'chlor_a', which is the varname
 } #else if (params$eov == "sla_uv"){
 # params$nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
 # params$varname <- c('sla', 'ugos', 'vgos')  # special case. multiple vars inside ncdf
@@ -133,14 +133,14 @@ if(params$eov == 'sst'){
     
     zCuts <- seq(-5.5,6,0.5)
     
-} else if(params$eov == 'chla'){
-    ncs <- list.files(params$nc_path, pattern = "NRTchla", full.names=T)
+} else if(params$eov == 'chlaWeekly'){
+    ncs <- list.files(params$nc_path, pattern = "chlaWeekly", full.names=T)
     print(str_c('most recent ncdf - ', ncs[length(ncs)]))
     
     fdates <- ncs %>% 
         str_split(., "/") %>%
         purrr::map_chr(~ pluck(., 8)) %>%
-        substr(., start=29, stop=38)
+        substr(., start=28, stop=37)
     
     cbar_breaks <- c(0.2, 2, 10, 20)
     cbar_limits <- limits <- c(0,20)
@@ -211,9 +211,10 @@ deploy_date <- as.Date("2023-07-10")
 # daily_dates <- c(deploy_date, tracking_dates)
 # daily_dates <- c(deploy_date, eov_dates)
 daily_dates <- intersect(as.character(tracking_dates), as.character(eov_dates))
-# daily_dates <-  unique(daily_avg_data$date)
-# # remove last date from trackign data to match most recently available eov layer
-# daily_dates <- daily_dates[-length(daily_dates)]
+
+# if(params$eov == "chlaWeekly"){
+#     daily_dates <- eov_dates
+# }
 
 ncIn <- sapply(1:length(daily_dates), function(x) ncs[grepl(daily_dates[x],ncs)])
 
@@ -224,9 +225,9 @@ if(params$eov == 'sst'){
     nc_dates <- ncIn %>% 
         map(~parseDT(., idx = 6, start=13, stop = 22, format="%Y-%m-%d")) %>%
         unlist() %>% as.Date() #%>%
-} else if (params$eov == 'chla'){
+} else if (params$eov == 'chlaWeekly'){
     nc_dates <- ncIn %>% 
-        map(~parseDT(., idx = 6, start=29, stop = 38, format="%Y-%m-%d")) %>%
+        map(~parseDT(., idx = 6, start=28, stop = 38, format="%Y-%m-%d")) %>%
         unlist() %>% as.Date() #%>%
 } else if(params$eov == 'ssta'){
     nc_dates <- ncIn %>% 
@@ -284,7 +285,7 @@ cclme_df <- get_cclme_df()
 
 if(params$eov == 'sst'){
     eov_df <- g_df_subset %>% mutate(date = as.Date(date)) #%>% filter(date == '2023-07-11')
-} else if(params$eov == 'chla'){
+} else if(params$eov == 'chlaWeekly'){
     eov_df <- g_df_subset %>% mutate(date = as.Date(date)) #%>%
     # mutate(val = log(val)) #%>% filter(date == '2023-07-11')
 } else if(params$eov == 'ssta'){
