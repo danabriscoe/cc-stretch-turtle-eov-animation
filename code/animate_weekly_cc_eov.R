@@ -683,7 +683,8 @@ if(save_figs){
 library(magick)
 
 # List plots files
-plot_files <- list.files('./anim_figs', pattern = "_tracks",full.names=T) #%>% list.files('./anim_figs', pattern = eov, full.names=T)
+flist <- list.files('./anim_figs', pattern = "_tracks",full.names=T)
+plot_files <- flist[grepl(eov, flist)] 
 pfiles <- plot_files[order(basename(plot_files))]
 
 # arrange by month order
