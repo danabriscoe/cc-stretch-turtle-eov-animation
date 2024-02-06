@@ -344,7 +344,16 @@ if(save_ext == 'gif'){
 eov = params$eov
 cclme = TRUE
 tcms = TRUE
+bathy = TRUE
 
+add_bathy <- function(depths = c(-140, -500), cols = c("azure3", "azure4")){
+    list(
+    geom_contour(data=bathy_df, aes(x=make360(long), y=lat, z = z), colour = cols[1], linewidth = 0.75,
+                 breaks = c(depths[1])),
+        geom_contour(data=bathy_df, aes(x=make360(long), y=lat, z = z), colour = cols[2], linewidth = 0.75,
+                     breaks = c(depths[2]))
+    )
+}
 # if(params$eov == 'sst'){
 #     zCuts <- seq(4,34,1)
 # } else if(params$eov == 'chl')
@@ -367,12 +376,12 @@ bathy_df <- readRDS('~/Dropbox/RESEARCH/PROJECTS/NPAC_Turtles/thermal_ms_2018/da
            lat = y) %>%
     dplyr::select(long, lat, z)
 
-bathy_shp <- rgdal::readOGR(dsn = "~/Downloads/Global Margin/ContinentalMargins.shp", layer = "ContinentalMargins")
-
-# fortify to convert shpfile into dataframe for ggplot
-bathy_df <- fortify(bathy_shp) %>%
-    filter(long >= -140 & long <= -105 & lat >= 25 & lat <= 50) %>%
-    mutate(lat.x = lat)
+# bathy_shp <- rgdal::readOGR(dsn = "~/Downloads/Global Margin/ContinentalMargins.shp", layer = "ContinentalMargins")
+# 
+# # fortify to convert shpfile into dataframe for ggplot
+# bathy_df <- fortify(bathy_shp) %>%
+#     filter(long >= -140 & long <= -105 & lat >= 25 & lat <= 50) %>%
+#     mutate(lat.x = lat)
 
 
 # -----------------------------------------------------------------------------------------------
@@ -387,17 +396,23 @@ release_loc = data.frame(lat=39.315, lon=213.9333)
 
 # convert to weekly dates
 eov_df_weekly <- eov_df %>%
-    mutate(end_of_week = ceiling_date(date, "week") %>% as.Date(.)) %>%
-    group_by(end_of_week, x, y) %>%
+    mutate(start_of_week = floor_date(date, "week") %>% as.Date(.)) %>%
+    # mutate(end_of_week = ceiling_date(date, "week") %>% as.Date(.)) %>%
+    group_by(start_of_week, x, y) %>%
+    # group_by(end_of_week, x, y) %>%
     summarize(val = mean(val, na.rm = TRUE), .groups = "drop") %>%
-    rename('date' = 'end_of_week')
+    rename('date' = 'start_of_week')
+    # rename('date' = 'end_of_week')
 
 turtles_df_weekly <- turtles_df %>%
-    mutate(end_of_week = ceiling_date(date, "week") %>% as.Date(.)) %>%
-    group_by(end_of_week, id) %>%
+    mutate(start_of_week = floor_date(date, "week") %>% as.Date(.)) %>%
+    # mutate(end_of_week = ceiling_date(date, "week") %>% as.Date(.)) %>%
+    group_by(start_of_week, id) %>%
+    # group_by(end_of_week, id) %>%
     summarize(lat = mean(lat, na.rm = TRUE),
               lon = mean(lon, na.rm = TRUE), .groups = "drop") %>%
-    rename('date' = 'end_of_week')
+    rename('date' = 'start_of_week')
+    # rename('date' = 'end_of_week')
 
 
 # ## Create static plot
@@ -444,8 +459,8 @@ if(params$eov == 'sst'){
 ## use image magick
 library(lubridate)
 dates <- seq(as.Date("2023-07-16"), as.Date("2023-12-24"), by = "weeks")
-dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)-1), by = "weeks") # assumes week -1
-dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)), by = "weeks") # assumes end of week
+# dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)-1), by = "weeks") # assumes using end of week: week -1
+dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)), by = "weeks") # assumes start of week
 
 n = length(dates)
 
@@ -494,8 +509,11 @@ weekly_tracks_plot_list <-
             } +
             
             # # # add bathy contour
-            # geom_contour(data=bathy_df, aes(x=make360(long), y=lat, z = z), colour = "white", linewidth = 1.25,
-            #              breaks = c(-140)) +
+            {
+                if (bathy) {
+                    add_bathy()
+                }
+            } +
             
             # add coast 
             geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black") +
@@ -503,7 +521,7 @@ weekly_tracks_plot_list <-
             {
                 if (cclme){
                     # geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = id), fill = 'gray75', alpha = 0.5)  # fyi, for long360 do not use id -- use group to group
-                    geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = group), fill = 'gray85', alpha = 0.35)  
+                    geom_polygon(data = cclme_df, aes(x = make360(long), y = lat.x, group = group), fill = 'gray85', alpha = 0.5)  
                 }
             } +
             
@@ -626,8 +644,8 @@ weekly_tracks_plot_list <-
                      # subtitle = "Date: {frame_time}", 
                      caption = str_c("\n Raw tracking data from ARGOS averaged to 1 weekly location per turtle (circles)\n\n", 
                                      "California Current Large Marine Ecosystem (CCLME) shaded in light gray\n", 
-                                     "Thermal Corridor region (box)\n",
-                                     caption_iso, "Ship release location (X)\n",
+                                     "Thermal Corridor region (box). Ship release location (X)\n",
+                                     caption_iso, "Continental depths of 140m and 500m (gray lines)\n",
                                      "\n Data source: ", eov_source," \n Dana Briscoe")) +
                 # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
                 theme(

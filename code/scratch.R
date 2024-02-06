@@ -2080,3 +2080,48 @@ test + scale_fill_gradientn(trans="log10", colours = cpal[11:length(cpal)],
 test + scale_fill_distiller(palette= "Spectral", direction=-1,
                             values = brks2,
                             limits = c(0.01, 30))
+
+
+mapview::mapview(bathy_shp, color = 'black', alpha.regions = 0)
+
+# vert cbar
+test + scale_fill_manual(values = cpal[7:length(cpal)], name = "SST (°C) \n", 
+                  labels = seq(4,30, 1), drop = F, na.translate = F,
+                  guide = guide_legend(label.vjust=+1.2, barwidth = 1, #barheight = 32,
+                                       frame.colour = "black", ticks.colour = "black", ncol =1, reverse=T)) 
+
+
+## this works! ----------
+panel_height <- unit(1,"npc") - sum(ggplotGrob(test)[["heights"]][-3]) - unit(1,"line")
+
+t2 = test +  guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, barheight = panel_height, limits = cbar_breaks,
+                                   ticks = TRUE)) 
+
+ggsave(t2, 
+       file = str_c('./anim_figs/', i, "_", dates[i], "_", eov, "_tracks_test.png"), 
+       width=14, 
+       # height=8.5,   # comment out height to get auto aspect ratio set!
+       bg = 'white')
+ ## ---------
+
+
+turtles_df %>%
+    mutate(start_of_week = floor_date(date, "week") %>% as.Date(.)) %>%
+    mutate(end_of_week = ceiling_date(date, "week") %>% as.Date(.)) %>%
+    group_by(start_of_week, id) %>%
+    # group_by(end_of_week, id) %>%
+    summarize(lat = mean(lat, na.rm = TRUE),
+              lon = mean(lon, na.rm = TRUE), .groups = "drop") %>%
+    rename('date' = 'start_of_week')
+    # rename('date' = 'end_of_week')
+
+
+
+
+## bathy
+i = n
+weekly_tracks_plot_list[[i]] +
+geom_contour(data=bathy_df, aes(x=make360(long), y=lat, z = z), colour = "azure3", linewidth = 0.75,
+             breaks = c(-140)) +
+    geom_contour(data=bathy_df, aes(x=make360(long), y=lat, z = z), colour = "azure4", linewidth = 0.75,
+                 breaks = c(-500))
