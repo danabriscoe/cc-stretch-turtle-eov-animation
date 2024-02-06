@@ -59,8 +59,8 @@ daily_avg_data <- raw_data %>%
 params <-list()
 
 # Set param to run
-# params$eov = 'sst'
-params$eov = 'ssta'
+params$eov = 'sst'
+# params$eov = 'ssta'
 # params$eov = 'chlaWeekly'
 # params$eov = 'sla_uv'
 
@@ -498,7 +498,14 @@ weekly_tracks_plot_list <-
                             # aes(x = x, y = y, fill = factor(cut(val, zCuts)), group = date), interpolate = TRUE)
             }
         }  +      
-                        
+            
+                # # # add bathy contour
+                {
+                    if (bathy) {
+                        add_bathy()
+                    }
+                } +
+                
             
             {
                 if (!is.null(tzcf_contour)) {
@@ -508,13 +515,7 @@ weekly_tracks_plot_list <-
                 }
             } +
             
-            # # # add bathy contour
-            {
-                if (bathy) {
-                    add_bathy()
-                }
-            } +
-            
+
             # add coast 
             geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black") +
             
@@ -734,7 +735,7 @@ library(magick)
 
 # List plots files
 flist <- list.files('./anim_figs', pattern = "_tracks",full.names=T)
-plot_files <- flist[grepl(eov, flist)] 
+plot_files <- flist[grepl(str_c(eov,"_"), flist, fixed=TRUE)] 
 pfiles <- plot_files[order(basename(plot_files))]
 
 # arrange by month order
@@ -766,7 +767,7 @@ plots_list <- lapply(pfiles, image_read)
 plot_joined <- image_join(plots_list)
 
 # Create animation, defining the frames per second (fps)
-plot_animated <- image_animate(plot_joined, fps = 2)
+plot_animated <- image_animate(plot_joined, fps = 1)
 
 # Write animation as gif
 image_write(image = plot_animated,

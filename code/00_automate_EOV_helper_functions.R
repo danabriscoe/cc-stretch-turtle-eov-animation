@@ -61,6 +61,30 @@ getNCDF <- function(url, eov, varname, dataset_ID, bbox, dt, ncpath, alt=NA){
     
 }
 
+
+get_ncdf_fdates <- function(x = params$eov, ncs){
+    if(x == 'sst'){
+        fdates <- ncs %>% 
+            str_split(., "_") %>%
+            purrr::map_chr(~ pluck(., 5)) %>%
+            substr(., start=1, stop=10)
+        
+    } else if(x == 'ssta'){
+        fdates <- ncs %>% 
+            str_split(., "_") %>%
+            purrr::map_chr(~ pluck(., 4)) %>%
+            substr(., start=1, stop=10)
+        
+    } else if(x == 'chlaWeekly'){
+        fdates <- ncs %>% 
+            str_split(., "/") %>%
+            purrr::map_chr(~ pluck(., 8)) %>%
+            substr(., start=28, stop=37)
+    }
+    return(fdates)
+}
+
+
 # # get_shipping_route
 # get_shipping_route <- function(port_start, port_end, lon_type='360'){
 #     
@@ -179,7 +203,63 @@ parseDT <- function(x, idx, start, stop, format){
     return(ret)
 }
 
+
+prep_turtles_sp <- function(df = daily_avg_data){
+    # 1) order points by date, rm na's
+    turtles <- df %>%
+        arrange(id, date) %>%
+        filter(!is.na(lon), !is.na(lat)) 
+    
+    # 2) make spatial
+    turtles_sp <- turtles
+    coordinates(turtles_sp) <- c("lon", "lat")
+    
+    # 3) set coord system
+    proj4string(turtles_sp) <- CRS("+init=EPSG:4326")
+    
+    # 4) transform to decimal degrees (from UTM)
+    # turtlesspgeo <- spTransform(turtles_sp, CRS("+init=epsg:3857"))
+    turtlesspgeo <- turtles_sp
+    
+    # 5) make back into dataframe (but include date for our animation)
+    # ggmap and gganimate use dataframes for plotting
+    turtlesgeo <- as.data.frame(turtlesspgeo@coords)
+    turtlesgeo$id <- turtlesspgeo@data$id # add individual identifier
+    turtlesgeo$date <- as.Date(turtlesspgeo@data$date) # Important! the variable for revealing in the animation must be either integer, numberic, POSIXct, Date, difftime, or orhms. Here I made sure it is a date.
+    
+    return(turtlesgeo)
+}
+
+
+ras2df <- function(g){
+    ret <- g %>%
+        rasterToPoints %>%
+        as.data.frame() %>%
+        `colnames<-`(c("x", "y", names(g))) %>%
+        pivot_longer(cols = starts_with("X20"),
+                     names_to = "layer",
+                     values_to = "val") %>%
+        mutate(layer = substr(layer, 2, 14)) %>%
+        mutate(date = as.POSIXct(layer, "%Y.%m.%d", tz = "UTC")
+        ) %>% 
+        mutate(x = make360(x)) %>%
+        mutate(date = as.Date(date))
+    
+    return(ret)
+}
+
 ## plot funcs ----
+
+get_bathy_df <- function(){
+    library(marmap)
+    bathy_df <- readRDS('~/Dropbox/RESEARCH/PROJECTS/NPAC_Turtles/thermal_ms_2018/data/epb_bathy.rds') %>%
+        fortify(epb_bathy) %>%
+        mutate(long = x, 
+               lat = y) %>%
+        dplyr::select(long, lat, z)
+    
+    return(bathy_df)
+}
 
 get_cclme_df <- function(){
     ## 1) load cclme shapefile
@@ -189,21 +269,38 @@ get_cclme_df <- function(){
     cclme_df <- fortify(cclme_shp) %>%
         mutate(lat.x = lat)
     
+    return(cclme_df)
 }
 
 
-make_fullsize <- function() structure("", class = "fullsizebar")
+get_mapdata <- function(){
+    ret <- map_data('world', wrap=c(-25,335), ylim=c(-55,75)) %>%
+        filter(long >= 120 & long <= 270 & lat >= 15 & lat <=80) 
+    return(ret)
+}
 
-ggplot_add.fullsizebar <- function(obj, g, name = "fullsizebar") {
-    h <- ggplotGrob(g)$heights
-    panel <- which(grid::unitType(h) == "null")
-    panel_height <- unit(1, "npc") - sum(h[-panel])
+get_state_borders <- function(){
+    usa <- st_as_sf(maps::map("state", fill=TRUE, plot =FALSE))
+    usa <- st_as_sf(usa, wkt = "geom", crs = 4326)
+    st_set_crs(usa, 4326)
+    usa_360 = st_shift_longitude(usa)
     
-    g + 
-        guides(fill = guide_colorbar(barheight = panel_height,
-                                     title.position = "top")) +
-        theme(legend.title = element_text(angle = 0, hjust = 0.5))
+    return(usa_360)
 }
+
+
+# make_fullsize <- function() structure("", class = "fullsizebar")
+# 
+# ggplot_add.fullsizebar <- function(obj, g, name = "fullsizebar") {
+#     h <- ggplotGrob(g)$heights
+#     panel <- which(grid::unitType(h) == "null")
+#     panel_height <- unit(1, "npc") - sum(h[-panel])
+#     
+#     g + 
+#         guides(fill = guide_colorbar(barheight = panel_height,
+#                                      title.position = "top")) +
+#         theme(legend.title = element_text(angle = 0, hjust = 0.5))
+# }
 
 
 make180 <- function(lon){
