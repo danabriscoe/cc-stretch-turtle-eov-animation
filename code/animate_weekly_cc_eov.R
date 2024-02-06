@@ -59,8 +59,8 @@ daily_avg_data <- raw_data %>%
 params <-list()
 
 # Set param to run
-params$eov = 'sst'
-# params$eov = 'ssta'
+# params$eov = 'sst'
+params$eov = 'ssta'
 # params$eov = 'chlaWeekly'
 # params$eov = 'sla_uv'
 
@@ -400,22 +400,22 @@ turtles_df_weekly <- turtles_df %>%
     rename('date' = 'end_of_week')
 
 
-## Create static plot
-gg_static <- get_static_plot(
-    eov = params$eov,
-    # eov_df = eov_df, #%>% filter(date >= '2023-07-15'),
-    # turtles_df = turtles_df, #%>% filter(date >= '2023-07-15'),
-    eov_df = eov_df_weekly %>% filter(date >= '2023-07-15'),
-    turtles_df = turtles_df_weekly%>% filter(date >= '2023-07-15'),
-    e,
-    release_loc,
-    cpal = cpal,
-    cbar_breaks,
-    cbar_limits,
-    plot_params,
-    cclme = TRUE
-)
-
+# ## Create static plot
+# gg_static <- get_static_plot(
+#     eov = params$eov,
+#     # eov_df = eov_df, #%>% filter(date >= '2023-07-15'),
+#     # turtles_df = turtles_df, #%>% filter(date >= '2023-07-15'),
+#     eov_df = eov_df_weekly %>% filter(date >= '2023-07-15'),
+#     turtles_df = turtles_df_weekly%>% filter(date >= '2023-07-15'),
+#     e,
+#     release_loc,
+#     cpal = cpal,
+#     cbar_breaks,
+#     cbar_limits,
+#     plot_params,
+#     cclme = TRUE
+# )
+# 
 
 ## Animate Tracks by Date ----- ----------------
 if(params$eov == 'sst'){
@@ -445,7 +445,7 @@ if(params$eov == 'sst'){
 library(lubridate)
 dates <- seq(as.Date("2023-07-16"), as.Date("2023-12-24"), by = "weeks")
 dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)-1), by = "weeks") # assumes week -1
-# dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)), by = "weeks") # assumes end of week
+dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)), by = "weeks") # assumes end of week
 
 n = length(dates)
 
