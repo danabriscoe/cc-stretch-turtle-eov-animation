@@ -59,9 +59,9 @@ daily_avg_data <- raw_data %>%
 params <-list()
 
 # Set param to run
-# params$eov = 'sst'
+params$eov = 'sst'
 # params$eov = 'ssta'
-params$eov = 'chlaWeekly'
+# params$eov = 'chlaWeekly'
 # params$eov = 'sla_uv'
 
 if(params$eov == 'sst'){
@@ -325,7 +325,7 @@ save_ext <- 'gif'
 if(save_ext == 'gif'){
     plot_params <- list(
         turtle_pt_size = 2,
-        barheight = 24,
+        barheight = 24-12,
         plot_text_size =12,
         title_size = 14,
         subtitle_size = 14,
@@ -360,20 +360,19 @@ usa <- st_as_sf(usa, wkt = "geom", crs = 4326)
 st_set_crs(usa, 4326)
 usa_360 = st_shift_longitude(usa)
 
-# p_barheight = 28.5 #38
-# p_plot_text_size = 14
+library(marmap)
+bathy_df <- readRDS('~/Dropbox/RESEARCH/PROJECTS/NPAC_Turtles/thermal_ms_2018/data/epb_bathy.rds') %>%
+    fortify(epb_bathy) %>%
+    mutate(long = x, 
+           lat = y) %>%
+    dplyr::select(long, lat, z)
 
-# if(eov == 'sst'){
-#     tzcf_contour = 18 #17
-#     tzcf_color = 'white'
-# } else if(eov == 'chla'){
-#     tzcf_contour = 0.2
-#     tzcf_color = 'gray10'
-# } else if(eov == 'ssta'){
-#     tzcf_contour = NULL
-# }
+bathy_shp <- rgdal::readOGR(dsn = "~/Downloads/Global Margin/ContinentalMargins.shp", layer = "ContinentalMargins")
 
-
+# fortify to convert shpfile into dataframe for ggplot
+bathy_df <- fortify(bathy_shp) %>%
+    filter(long >= -140 & long <= -105 & lat >= 25 & lat <= 50) %>%
+    mutate(lat.x = lat)
 
 
 # -----------------------------------------------------------------------------------------------
@@ -494,9 +493,9 @@ weekly_tracks_plot_list <-
                 }
             } +
             
-            # # add tzcf contour
-            # geom_contour(data=eov_df, aes(x=x, y=y, z = val), colour = "white", linewidth = 1.25,
-            #              breaks = c(tzcf_contour)) +
+            # # # add bathy contour
+            # geom_contour(data=bathy_df, aes(x=make360(long), y=lat, z = z), colour = "white", linewidth = 1.25,
+            #              breaks = c(-140)) +
             
             # add coast 
             geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black") +
@@ -639,20 +638,28 @@ weekly_tracks_plot_list <-
                     legend.key = element_rect(color="snow", fill = 'white'), legend.key.size=unit(13,"point"),
                     plot.margin = unit(c(0.75, 0, 0.5, 0), "cm")) +
                 
-                
-                {        
-                    if (eov =='sst' | eov == 'ssta'){   
-                        guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, barheight = plot_params$barheight, limits = cbar_breaks,
-                                                   ticks = TRUE)) 
-                    } else if (eov == 'chlWeekly') {
-                        guides(fill = guide_colourbar(
-                                barheight = plot_params$barheight+16,
-                                ticks = TRUE)
-                            )
-                        # make_fullsize()
-                    }
-                } + 
-                make_fullsize()+
+                # 
+                # {        
+                #     if (eov =='sst'){   
+                #         guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, barheight = plot_params$barheight, limits = cbar_breaks,
+                #                                    ticks = TRUE)) 
+                #     } else if(eov == 'ssta')  {
+                #         guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, barheight = plot_params$barheight, limits = cbar_breaks,
+                #                                    ticks = TRUE))   
+                #     } else if (eov == 'chlWeekly') {
+                #         guides(fill = guide_colourbar(
+                #                 barheight = plot_params$barheight+16,
+                #                 ticks = TRUE)
+                #             )
+                #         # make_fullsize()
+                #     }
+                # } + 
+                # 
+                # { 
+                #     if (eov == 'chlWeekly') {
+                #         make_fullsize()
+                #     }
+                # } +
                 NULL
             # # +
             #     theme(legend.key = element_rect(color="gray80", fill = 'white'))
@@ -663,7 +670,32 @@ weekly_tracks_plot_list <-
 wk_names <- str_c("plot_", unique(dates))
 names(weekly_tracks_plot_list) <- wk_names
 
-    
+# resize colorbar
+panel_height <- unit(1,"npc") - sum(ggplotGrob(weekly_tracks_plot_list[[1]])[["heights"]][-3]) - unit(1,"line")
+
+weekly_tracks_plot_list <- 
+    lapply(seq(1,n), function(i) {
+        weekly_tracks_plot_list[[i]] <- weekly_tracks_plot_list[[i]] + 
+            
+            {        
+                if (eov =='sst'){   
+                    guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, barheight = panel_height, limits = cbar_breaks,
+                                               ticks = TRUE)) 
+                } else if(eov == 'ssta')  {
+                    guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, barheight = panel_height, limits = cbar_breaks,
+                                               ticks = TRUE))   
+                } else if (eov == 'chlWeekly') {
+                    guides(fill = guide_colourbar(
+                        barheight = panel_height,
+                        ticks = TRUE)
+                    )
+                    # make_fullsize()
+                }
+            }
+            
+            # guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, barheight = panel_height, limits = cbar_breaks,
+            #                                                                                       ticks = TRUE)) 
+    })
 
 # save plots as pngs (to create gif)
 save_figs = TRUE
