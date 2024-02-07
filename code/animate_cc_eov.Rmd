@@ -60,7 +60,7 @@ source('crop_image.R')
 ```
 
 
-## Load CC Data
+## Load CC Data ----
 ```{r load-raw-cc-data}
 ## Pull Raw Tracking Data -----
 files <- list.files('~/Downloads/batch/', pattern = "All.csv", recursive=T, full.names=T)
@@ -84,15 +84,23 @@ raw_data <- rbindlist(lapply(files, fread)) %>%
 
 
 ## Prep CC Data
-```{r create-cc-daily-avgs}
-# create daily cc avgs
-daily_avg_data <- raw_data %>%
-    mutate(date = as.Date(date)) %>%
-    group_by(id, date) %>%
-    summarise(lat = mean(lat),
-              lon = mean(lon))
+```{r source-load-cohort1-routine}
+source('01_prep_wc_data.R')
+
 ```
 
+```{r 01-rename dfs}
+raw_df <- raw_data_cohort_1_w_names
+daily_avg_data <- daily_avg_data_cohort_1 
+
+# misc - pull uniqud id info for later?
+ids = unique(daily_avg_data$id) # prefer to use t names instead
+# ids = unique(daily_avg_data$turtle_name)
+
+t_names = unique(daily_avg_data$turtle_name)
+t_nums = unique(daily_avg_data$turtle_num)
+t_names_num <- c(str_c(t_nums, ' - ', t_names))
+```
 
 ```{r prep-turtle-sp}
 turtlesgeo <- prep_turtles_sp(df = daily_avg_data)
@@ -100,7 +108,7 @@ turtlesgeo <- prep_turtles_sp(df = daily_avg_data)
 ```
 
 
-## Load EOV Data
+## Load EOV Data ---
 ```{r set-param-ncpath}
 # Set param to run
 if(params$eov == 'sst'){
@@ -208,7 +216,7 @@ eov_df <- ras_masked %>%
 ```
 
 
-## Prep Plots
+## Prep Plots --------
 ### Prep CC-EOV DFs
 
 ```{r create-turtles-df}
@@ -388,7 +396,7 @@ add_anim_theme <- function(bbox = params$bbox, subtitle_text_col = "snow"){
 }
 
 
-add_bathy <- function(data = bathy_df, depths = c(-200), cols = c("azure3")){
+add_bathy <- function(data = bathy_df, depths = c(-200), cols = c("azure4")){
     list(
     geom_contour(data=data, aes(x=make360(long), y=lat, z = z), colour = cols[1], linewidth = 0.75,
                  breaks = c(depths[1]))
@@ -447,12 +455,12 @@ add_turtle_pts <- function(data){
         geom_point(inherit.aes = FALSE, data = data, # point fill color
             aes(x=lon,y=lat, color = as.factor(id)), stroke = 0.75, alpha = 0.90, size=2, show.legend=FALSE),
         # scale_colour_manual(values = rainbow(25)),
-        scale_colour_manual(values = idColors),
+        scale_colour_manual(values = setNames(idColors, ids), drop = F),
         
         geom_point(inherit.aes = FALSE, data = data, # point border color
             aes(x=lon,y=lat, color = as.factor(id)), stroke = 0.75, alpha = 0.90, size=2, show.legend=FALSE), 
         # scale_colour_manual(values = rainbow(25))
-        scale_colour_manual(values = idColors)
+        scale_colour_manual(values = setNames(idColors, ids), drop = F)
     )
 }
            
@@ -460,7 +468,7 @@ add_turtle_lines <- function(data){
     list(
         geom_path(data = data,
             aes(x=lon,y=lat, color = as.factor(id), group = as.factor(id)), linewidth = 1.5, show.legend = FALSE),
-         scale_colour_manual(values = idColors)
+         scale_colour_manual(values = setNames(idColors, ids), drop = F)
     )
 }  
 
@@ -716,25 +724,33 @@ tracks_plot_list <-
                     )
                 }
             } +
+            
+            {
+                if(params$subset_tcms){
+                    # add_bathy(data = bathy_df, depths = c(-200), cols = c("azure4")) +
+                    update_map_extent(bbox = c(-138, -110, 25, 37))
+                }
+            } +
+            
             labs(title = anim_title, caption = anim_caption) 
     })
 
 ```
 
-```{r plot-tcms-subset-region}
+<!-- ```{r plot-tcms-subset-region} -->
 
-if(params$subset_tcms){
-    tcms_tracks_plot_list <- 
-        lapply(seq(1,n), function(i) {
-            
-            tcms_tracks_plot_list[[i]] <- tracks_plot_list[[i]] + 
-                add_bathy(data = bathy_df, depths = c(-200), cols = c("azure4")) +
-                update_map_extent(bbox = c(-138, -110, 25, 37))
-            
-        })
+<!-- if(params$subset_tcms){ -->
+<!--     tracks_plot_list[[i]] <-  -->
+<!--         lapply(seq(1,n), function(i) { -->
 
-}
-```
+<!--             tracks_plot_list[[i]] <- tracks_plot_list[[i]] +  -->
+<!--                 add_bathy(data = bathy_df, depths = c(-200), cols = c("azure4")) + -->
+<!--                 update_map_extent(bbox = c(-138, -110, 25, 37)) -->
+
+<!--         }) -->
+
+<!-- } -->
+<!-- ``` -->
 
 
 

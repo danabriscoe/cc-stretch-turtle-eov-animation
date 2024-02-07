@@ -2133,3 +2133,36 @@ leg <- get_legend(tracks_plot_list[[1]]   + theme(legend.position="right"))
 p1 <- tracks_plot_list[[1]] + theme(legend.position="none")
 
 plot_grid(p1, leg, ncol = 2, rel_widths = c(2, .1))
+
+
+
+test +  geom_path(data = turtles_frame,
+                  aes(x=lon,y=lat, color = as.factor(id), group = as.factor(id)), linewidth = 1.5, show.legend = FALSE) 
+
+
+
+test + 
+    # geom_path(data = turtles_frame,
+    #                      aes(x=lon,y=lat, color = as.factor(id), group = as.factor(id)), linewidth = 1.5, show.legend = TRUE) +
+    
+    geom_point(inherit.aes = FALSE, data = turtles_frame, # point border color
+               aes(x=lon,y=lat, color = as.factor(id)), stroke = 0.75, alpha = 0.90, size=2, show.legend=T) +
+# scale_colour_manual(values = rainbow(25))
+scale_colour_manual(values = idColors, drop = F)
+scale_colour_manual(values = idColors, drop = F) +
+    # theme(legend.direction = "vertical", legend.box = "horizontal") +
+    guides(fill = guide_legend(title = cbar_title, ncol=2, reverse=T, #barheight = panel_height, 
+                               limits = cbar_breaks,
+                               ticks = TRUE)) +
+    guides(colour = guide_legend(nrow = 2, byrow = T, override.aes=list(size=4))) +
+    guides(size = guide_legend(nrow = 2, byrow = T)) +
+    theme(legend.direction = "vertical", legend.box = "vertical")
+    
+
+# THIS WORKS FOR HOLDING WC COLS TO IDS ---
+test +
+    geom_point(inherit.aes = FALSE, data = turtles_frame, # point border color
+               aes(x=lon,y=lat, color = as.factor(id)), stroke = 0.75, alpha = 0.90, size=2, show.legend=F) +
+    # scale_colour_manual(values = rainbow(25))
+    scale_colour_manual(values = setNames(idColors, ids), 
+                        drop = F)
