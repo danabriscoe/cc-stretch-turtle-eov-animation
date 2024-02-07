@@ -6,14 +6,15 @@ output: html_document
 params:
   eov: "sst"
   enddate: !r Sys.Date() - 2
-  startdate: !r (Sys.Date() -2) %m+% months(-1)
-  timestep: "weekly"
+  startdate: !r as.Date('2023-07-10')
+  timestep: "daily"
   nc_path: "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
   bbox: !r tibble::tibble(ymin=25, ymax=50,xmin=-170, xmax=-110)
   cclme: TRUE
   tcms: TRUE
   bathy: TRUE
   state_borders: TRUE
+  subset_tcms: TRUE
   plot_text_size: 12
 ---
 
@@ -74,7 +75,10 @@ raw_data <- rbindlist(lapply(files, fread)) %>%
     ) %>%
     mutate(date = as.POSIXct(date, format= "%m/%d/%Y %H:%M:%S", tz="UTC")) %>%
     filter(lat > 0 & lat < 60) %>%
-    filter(date >= '2023-07-11 04:30:00')
+    filter(date >= '2023-07-11 04:30:00') %>%
+    
+    filter(loc_quality != 0)  # added 17 Jan 2024 -- to deal with raw argos bad data point (tsubaki, 12 jan 2024 locs - remove loc class = 0)
+
 
 ```
 
@@ -249,14 +253,14 @@ if(params$timestep == 'daily'){
 if(exists("turtles_df_daily")){
     turtles_df_anim <- turtles_df_daily
 } else if(exists("turtles_df_weekly")){
-     turtles_df_anim <- turtles_df_weekly
+    turtles_df_anim <- turtles_df_weekly
 }
 
 ## eov
-if(exists("turtles_df_daily")){
-    eov_df_anim <- eov_df_anim
+if(exists("eov_df_daily")){
+    eov_df_anim <- eov_df_daily
 } else if(exists("eov_df_weekly")){
-     eov_df_anim <- eov_df_weekly
+    eov_df_anim <- eov_df_weekly
 }
 
 ```
@@ -375,7 +379,7 @@ add_anim_theme <- function(bbox = params$bbox, subtitle_text_col = "snow"){
     ),
 
     # set map extent
-    coord_sf(xlim = c(make360(params$bbox$xmin+1), make360(params$bbox$xmax)), ylim = c(params$bbox$ymin, params$bbox$ymax), expand = FALSE, crs = st_crs(4326)),
+    coord_sf(xlim = c(make360(bbox$xmin+1), make360(bbox$xmax)), ylim = c(bbox$ymin, bbox$ymax), expand = FALSE, crs = st_crs(4326)),
 
     # labs
     labs(x = "\n Longitude \n", y = "\n \n Latitude \n ")
@@ -424,26 +428,39 @@ add_state_borders <- function(data = usa){
     )
 }
 
+update_map_extent <- function(bbox = c(-130, -110, 25, 50)){
+    list(
+        coord_sf(xlim = c(make360(bbox[1]+1), make360(bbox[2])), ylim = c(bbox[3], bbox[4]), expand = FALSE, crs = st_crs(4326))
+    )
+}
+
 ```
 
 ```{r}
+
+idColors <-
+  setNames( c(rainbow(25))
+            , levels(turtles_df_anim$id)  )
 
 add_turtle_pts <- function(data){
     list(
         geom_point(inherit.aes = FALSE, data = data, # point fill color
             aes(x=lon,y=lat, color = as.factor(id)), stroke = 0.75, alpha = 0.90, size=2, show.legend=FALSE),
-        scale_colour_manual(values = rainbow(25)),
+        # scale_colour_manual(values = rainbow(25)),
+        scale_colour_manual(values = idColors),
         
         geom_point(inherit.aes = FALSE, data = data, # point border color
             aes(x=lon,y=lat, color = as.factor(id)), stroke = 0.75, alpha = 0.90, size=2, show.legend=FALSE), 
-        scale_colour_manual(values = rainbow(25))
+        # scale_colour_manual(values = rainbow(25))
+        scale_colour_manual(values = idColors)
     )
 }
            
 add_turtle_lines <- function(data){
     list(
         geom_path(data = data,
-            aes(x=lon,y=lat, color = as.factor(id), group = as.factor(id)), linewidth = 1.5, show.legend = FALSE) 
+            aes(x=lon,y=lat, color = as.factor(id), group = as.factor(id)), linewidth = 1.5, show.legend = FALSE),
+         scale_colour_manual(values = idColors)
     )
 }  
 
@@ -556,6 +573,13 @@ tracks_plot_list <-
         eov_frame = eov_df_anim %>% filter(date == dates[i]) 
         turtles_frame = turtles_df_anim %>% filter(date <= dates[i]) 
         
+        # if(params$timestep == 'daily'){
+        #     startdate <- params$enddate %m+% months(-1)
+        #     turtles_frame = turtles_df_anim %>% filter(date >= startdate & date <= dates[i]) 
+        # } else if(params$timestep == 'weekly'){
+        #     turtles_frame = turtles_df_anim %>% filter(date <= dates[i]) 
+        # }
+        
         # plot up
             ggplot() +
                 
@@ -639,7 +663,13 @@ tracks_plot_list <-
                 
                 
             # dynamic labs
-            labs(subtitle = str_c("Week of: ", format(dates[i], "%b-%d-%Y"))) +
+            {
+               if (params$timestep == 'daily'){
+                    labs(subtitle = str_c("Date: ", format(dates[i], "%b-%d-%Y"))) 
+                } else if (params$timestep == 'weekly'){    
+                    labs(subtitle = str_c("Week of: ", format(dates[i], "%b-%d-%Y")))
+                }
+            } +
                 
             # labs(title = anim_title,
             #      caption = anim_caption
@@ -691,16 +721,40 @@ tracks_plot_list <-
 
 ```
 
+```{r plot-tcms-subset-region}
+
+if(params$subset_tcms){
+    tcms_tracks_plot_list <- 
+        lapply(seq(1,n), function(i) {
+            
+            tcms_tracks_plot_list[[i]] <- tracks_plot_list[[i]] + 
+                add_bathy(data = bathy_df, depths = c(-200), cols = c("azure4")) +
+                update_map_extent(bbox = c(-138, -110, 25, 37))
+            
+        })
+
+}
+```
+
+
+
 ## Save Frames
 ```{r}
 # save plots as pngs (to create gif)
 save_figs = TRUE
 
+dir <- str_c('../anim_figs/', params$timestep, '_anim')
+if(params$subset_tcms){
+    p_extent <- 'tcms_region'
+} else {
+    p_extent <- 'enpac'
+}    
+    
+
 if(save_figs){
     lapply(seq(1:length(wk_names)), function(i) { ggsave(tracks_plot_list[[i]], 
-                                                         file = str_c('../anim_figs/', i, "_", dates[i], "_", params$eov, "_tracks.png"), 
-                                                         width=14, 
-                                                         # scale = 2,
+                                                         file = str_c(dir, '/', i, "_", dates[i], "_", params$eov, "_tracks_", p_extent,".png"), 
+                                                         width=14,
                                                          # height=8.5,   # comment out height to get auto aspect ratio set!
                                                          bg = 'white')
     })
@@ -715,7 +769,7 @@ if(save_figs){
 library(gtools)
 
 # List plots files
-flist <- list.files('../anim_figs', pattern = "_tracks",full.names=T)
+flist <- list.files(dir, pattern = "_tracks",full.names=T)
 plot_files <- flist[grepl(str_c(params$eov,"_"), flist, fixed=TRUE)] 
 pfiles <- plot_files[order(basename(plot_files))]
 
@@ -746,7 +800,7 @@ plot_animated <- image_animate(plot_joined, fps = 1)
 
 # Write animation as gif
 image_write(image = plot_animated,
-            path = str_c('../anim_figs/', "stretch_2023_",params$timestep,"_animation_", params$enddate, "_", params$eov, ".gif"))
+            path = str_c(dir, "stretch_2023_",params$timestep,"_animation_", params$enddate, "_", params$eov, ".gif"))
 
 
 ## Use CONVERTIO online for mp4 generation
