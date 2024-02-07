@@ -142,6 +142,39 @@ get_ncdf_fdates <- function(x = params$eov, ncs){
 #     return(x_df_long)
 # }
 
+mask_goc_bathy <- function(df = bathy_df, .poly = goc_mask){
+    # convert df to spdf
+    bathy_sp <- df %>% mutate(id = 1)
+    coordinates(bathy_sp) <- c("long", "lat")
+    
+    # set coord system
+    proj4string(bathy_sp) <- CRS("+init=EPSG:4326")
+    proj4string(.poly) <- CRS("+init=EPSG:4326")
+    
+    # convert to sf 
+    pts <- sf::st_as_sf(bathy_sp)
+    ply <- sf::st_as_sf(.poly)
+        
+    # find points that do not intersect (aka bathy pts not in goc mask)
+    ##  See: "https://stackoverflow.com/questions/71289669/intersection-keeping-non-intersecting-polygons-in-sf-r'
+    bathy_masked <-
+        st_difference(pts, st_union(st_geometry(ply)))
+    
+    # plot(bathy_masked)
+    bathy_masked_df <- bathy_masked %>% sf_to_df( ., fill = TRUE) %>%
+        as.data.frame() %>%
+        dplyr::select(c(x, y, z)) %>%
+        setNames(c("long","lat", "z"))
+   
+    
+    ret_df = merge(bathy_df, bathy_masked_df, by = c("long", "lat")) %>%
+        mutate(z = z.x) %>%
+        dplyr::select("long", "lat", "z") 
+    return(ret_df)
+}
+
+
+
 getNCDF_sla <- function(url, varnames, 
                         # location, 
                         bbox, dt = dates, 

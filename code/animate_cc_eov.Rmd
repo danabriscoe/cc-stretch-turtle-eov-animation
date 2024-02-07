@@ -200,7 +200,8 @@ ras_subset <- crop(ras, e180)
 ### GoC Mask
 ```{r mask-GoC}
 # create goc mask
-goc_mask <- rbind(c(-110, 23.75), c(-122, 40), c(-110, 40), c(-110, 23.75))
+# goc_mask <- rbind(c(-110, 23.75), c(-122, 40), c(-110, 40), c(-110, 23.75))
+goc_mask <- rbind(c(-106, 18), c(-110, 23.75), c(-122, 40), c(-110, 40), c(-106, 18))
 goc_mask <- SpatialPolygons(list(Polygons(list(Polygon(goc_mask)), 1)))
 
 # mask raster stack
@@ -348,6 +349,9 @@ mapdata <- get_mapdata()
 
 ## etopo bathy
 bathy_df <- get_bathy_df()
+
+## mask GoC from bathy_df
+bathy_masked_df <- mask_goc_bathy(df = bathy_df, .poly = goc_mask)
 
 ## cclme shapefile
 cclme_df <- get_cclme_df()
@@ -538,10 +542,17 @@ if(params$eov == 'sst'){
 
 anim_title <- str_c("STRETCH ", str_to_title(params$timestep), " turtle movements (n=25) with ", title_eov)
 
+# anim_caption = str_c("\n Raw tracking data from ARGOS averaged to 1 " , params$timestep , " location per turtle (circles)\n\n", 
+#                          "California Current Large Marine Ecosystem (CCLME) shaded in gray\n", 
+#                          "Thermal Corridor region (box). Ship release location (X)\n",
+#                           caption_iso, "Continental depths of 200m (gray lines)\n",
+#                          "\n Data source: ", eov_source," \n Dana Briscoe"
+#                                  )
+
 anim_caption = str_c("\n Raw tracking data from ARGOS averaged to 1 " , params$timestep , " location per turtle (circles)\n\n", 
                          "California Current Large Marine Ecosystem (CCLME) shaded in gray\n", 
-                         "Thermal Corridor region (box). Ship release location (X)\n",
-                          caption_iso, "Continental depths of 200m (light gray lines)\n",
+                         "Continental depths of 200m (gray lines). Ship release location (X)\n",
+                          caption_iso, "Thermal Corridor region (box)\n",
                          "\n Data source: ", eov_source," \n Dana Briscoe"
                                  )
 ```
@@ -608,7 +619,7 @@ tracks_plot_list <-
             # add bathy
                 {
                     if (params$bathy) {
-                        add_bathy(data = bathy_df, depths = c(-200), )
+                        add_bathy(data = bathy_masked_df, depths = c(-200), )
                     }
                 } +
                 

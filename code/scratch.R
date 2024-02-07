@@ -2166,3 +2166,144 @@ test +
     # scale_colour_manual(values = rainbow(25))
     scale_colour_manual(values = setNames(idColors, ids), 
                         drop = F)
+
+
+
+# bathy goc remove ----
+bathy_sp <- bathy_df %>% mutate(id = 1)
+coordinates(bathy_sp) <- c("long", "lat")
+
+# 3) set coord system
+proj4string(bathy_sp) <- CRS("+init=EPSG:4326")
+proj4string(goc_mask) <- CRS("+init=EPSG:4326")
+
+str(bathy_sp)
+str(goc_mask)
+
+# # Subset points intersecting polygon
+# prid <- over(bathy_sp,goc_mask)
+# ptid <- na.omit(prid) 
+# pt.poly <- bathy_sp[as.numeric(as.character(row.names(ptid))),]  
+# 
+# plot(bathy_sp, col="azure3")
+# axis(1); axis(2)
+# plot(goc_mask, add=TRUE, border="red")
+# plot(pt.poly,pch=19,add=TRUE) 
+# 
+# str(pt.poly)
+
+
+
+# library(rgeos)
+# 
+# ply = goc_mask
+# pts = bathy_sp
+# # Intersect polygons and points, keeping point IDs
+# pts.intersect <- gIntersection(ply, pts, byid = TRUE)
+# 
+# # Extract point IDs from intersected data
+# pts.intersect.strsplit <- strsplit(dimnames(pts.intersect@coords)[[1]], " ")
+# pts.intersect.id <- as.numeric(sapply(pts.intersect.strsplit, "[[", 2))
+# 
+# # Subset original SpatialPointsDataFrame by extracted point IDs
+# pts.extract <- pts[pts.intersect.id, ]
+# 
+# head(coordinates(pts.extract))
+# 
+# 
+# head(pts.extract)
+
+
+# library(spatialEco)
+
+
+ply = goc_mask
+pts = bathy_sp
+
+ply <- sf::st_as_sf(goc_mask)
+pts <- sf::st_as_sf(bathy_sp)
+
+# use sf functions
+extracted_gps_sf <- sf::st_intersection(pts, ply)
+
+# intersect points in polygon
+a <- sf::st_intersection(pts, ply)
+
+buff = lengths(st_intersects(pts, a)) <= 0
+
+# check plot
+plot(ply)
+plot(buff, col='red', add=T)
+plot(a) 
+
+# THIS WORKS! -------------------
+# bathy goc remove ----
+bathy_sp <- bathy_df %>% mutate(id = 1)
+coordinates(bathy_sp) <- c("long", "lat")
+
+# 3) set coord system
+proj4string(bathy_sp) <- CRS("+init=EPSG:4326")
+proj4string(goc_mask) <- CRS("+init=EPSG:4326")
+
+
+ply <- sf::st_as_sf(goc_mask)
+pts <- sf::st_as_sf(bathy_sp)
+
+##  See: "https://stackoverflow.com/questions/71289669/intersection-keeping-non-intersecting-polygons-in-sf-r'
+bathy_masked <-
+    st_difference(pts, st_union(st_geometry(ply)))
+
+# plot(bathy_masked)
+bathy_masked_df <- bathy_masked %>% sf_to_df( ., fill = TRUE) %>%
+    as.data.frame() %>%
+    dplyr::select(c(x, y, z)) %>%
+    setNames(c("long","lat", "z"))
+head(bathy_masked_df)
+# convert to data frame, keeping your data
+# pts<- as.data.frame(pts)
+
+# bff = unlist(lapply(bathy_masked_df, FUN=function(x){data.frame(as.matrix(x),stringsAsFactors = F)}))
+# bff = fortify(bathy_masked_df)
+
+# # remove attributes that are not names
+# bathy_masked_df[] <- lapply(bathy_masked_df, c) # use [] to preserve data.frame
+# str(bathy_masked_df) # no attributes. No names either but those are never added in R 3.6.3
+# attr(bathy_masked_df[[deparse(as.name(var))]], "sfc_columns") <- NULL
+
+bff = merge(bathy_df, bathy_masked_df, by = c("long", "lat")) %>%
+    mutate(z = z.x) %>%
+    dplyr::select("long", "lat", "z") 
+head(bff)
+
+ggplot() + #add_baseplot() +
+# geom_contour(data=bathy_masked_df, aes(x=make360(x), y=y, z = z), colour = "red", linewidth = 0.75, breaks = 0)
+    geom_contour(data=bff, aes(x=make360(long), y=lat, z = z), colour = "red", linewidth = 0.75, breaks = -200) + 
+    geom_sf(data = st_shift_longitude(ply),color = "black", fill = "transparent")
+
+# END THIS WORKS! -------------------
+
+
+library(sfheaders)
+
+bathy_sp <- bathy_df %>% mutate(id = 1)
+coordinates(bathy_sp) <- c("long", "lat")
+
+# 3) set coord system
+proj4string(bathy_sp) <- CRS("+init=EPSG:4326")
+
+proj4string(goc_mask) <- CRS("+init=EPSG:4326")
+ply <- sf::st_as_sf(goc_mask)
+pts <- sf::st_as_sf(bathy_sp)
+
+# bathy_sf <- pts %>% 
+#     st_as_sf(coords = c("long", "lat"), crs = 4326) %>%
+#     group_by(id) %>%
+#     summarise(geometry = st_combine(geometry)) %>%
+#     st_cast("POLYGON") 
+# bathy_sf %>%
+#     plot()
+# 
+# b <- st_intersects(bathy_sf, ply)
+# 
+# plot(ply, add=TRUE)
+# plot(bathy_sf)
