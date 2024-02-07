@@ -2125,3 +2125,11 @@ geom_contour(data=bathy_df, aes(x=make360(long), y=lat, z = z), colour = "azure3
              breaks = c(-140)) +
     geom_contour(data=bathy_df, aes(x=make360(long), y=lat, z = z), colour = "azure4", linewidth = 0.75,
                  breaks = c(-500))
+
+
+library(cowplot)
+leg <- get_legend(tracks_plot_list[[1]]   + theme(legend.position="right"))
+
+p1 <- tracks_plot_list[[1]] + theme(legend.position="none")
+
+plot_grid(p1, leg, ncol = 2, rel_widths = c(2, .1))

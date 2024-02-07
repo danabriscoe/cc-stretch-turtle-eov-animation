@@ -6,13 +6,14 @@ output: html_document
 params:
   eov: "sst"
   enddate: !r Sys.Date() - 2
-  startdate: !r Sys.Date() - 32
+  startdate: !r (Sys.Date() -2) %m+% months(-1)
   timestep: "weekly"
   nc_path: "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
-  bbox: !r tibble::tibble(ymin=25, ymax=50,xmin=-165, xmax=-110)
+  bbox: !r tibble::tibble(ymin=25, ymax=50,xmin=-170, xmax=-110)
   cclme: TRUE
   tcms: TRUE
   bathy: TRUE
+  state_borders: TRUE
   plot_text_size: 12
 ---
 
@@ -38,6 +39,7 @@ library(sf)
 library(gganimate)
 library(ggmap)
 library(dplyr)
+library(lubridate)
 library(magrittr)
 library(magick)
 library(raster)
@@ -45,6 +47,8 @@ library(oce)
 library(RColorBrewer)
 library(rnaturalearth)
 library(gifski)
+library(magick)
+library(gtools)
 
 ```
 
@@ -210,12 +214,14 @@ turtles_df <- turtlesgeo %>% filter(date %in% nc_dates)
 
 ```{r calc-df-timesteps}
 if(params$timestep == 'daily'){
-    # keep daily avgs and filter last 1 month for anim
-    turtles_df <- turtles_df %>%
-        filter(date >= params$startdate & params$enddate)
     
-    eov_df <- eov_df %>%
-        filter(date >= params$startdate & params$enddate)
+    # keep daily avgs and filter last 1 month for anim
+    turtles_df_daily <- turtles_df %>%
+        filter(date >= params$startdate & date <= params$enddate)
+    
+    eov_df_daily <- eov_df %>%
+        filter(date >= params$startdate & date <=params$enddate)
+    
     
 } else if(params$timestep == 'weekly'){
     # convert daily avgs to weekly dates for anim
@@ -236,6 +242,26 @@ if(params$timestep == 'daily'){
 
 ```
 
+```{r rename-cc-eov-dfs-for-anim}
+# rename df's for anim plotting
+## cc
+
+if(exists("turtles_df_daily")){
+    turtles_df_anim <- turtles_df_daily
+} else if(exists("turtles_df_weekly")){
+     turtles_df_anim <- turtles_df_weekly
+}
+
+## eov
+if(exists("turtles_df_daily")){
+    eov_df_anim <- eov_df_anim
+} else if(exists("eov_df_weekly")){
+     eov_df_anim <- eov_df_weekly
+}
+
+```
+
+
 ### Set EOV CBAR Params
 ```{r set-eov-cbar-params}
 
@@ -248,7 +274,7 @@ if(params$eov == 'sst'){
     cbar_limits = c(4, 31)
     # cbar_limits <- c(6,31)
     cbar_int <- 1
-    cbar_title <- 'SST (°C) \n'
+    cbar_title <- 'SST (°C)'
     
     tzcf_contour = 18
     tzcf_color = 'white'
@@ -281,8 +307,9 @@ if(params$eov == 'sst'){
     
 } else if(params$eov == 'chlaWeekly'){
 
-    cbar_breaks <- c(0.2, 2, 10, 20)
-    cbar_limits <- limits <- c(0,20)
+    cbar_breaks=c(0.03, 0.1, 0.2, 0.4,  2, 10, 30)
+    cbar_limits <- c(0.03, 30)
+    cbar_labels=c(0.03, 0.1, 0.2, 0.4,  2, 10, 30)
     cbar_int <- 0.1
     cbar_title <- 'Chl \n(mg/m^3) \n'
     
@@ -326,46 +353,53 @@ release_loc = data.frame(lat=39.315, lon=213.9333)
 ### Assign GG Layers
 ```{r make-gglayers}
 
-add_baseplot <- function(bbox = params$bbox){
+add_baseplot <- function(){
     list(
     # add land
-    geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black"),
+    geom_polygon(data = mapdata, aes(x=long, y = lat, group = group), color = "black", fill = "black")
+    )
+}
 
+add_anim_theme <- function(bbox = params$bbox, subtitle_text_col = "snow"){
+    list(
     # theme
     theme_minimal(), 
     theme(
-        text = element_text(size=12),
+        text = element_text(size=12-2),
         plot.title = element_text(size=14, face="bold", margin=margin(t=20,b=0), hjust=0.03),
-        # plot.subtitle = element_text(size = 14, face="bold", margin=margin(t=30,b=-30), hjust=0.025, color=subtitle_text_col),
-        plot.caption = element_text(size=10.5),
-        legend.key = element_rect(color="snow", fill = 'white'), legend.key.size=unit(13,"point"),
+        plot.subtitle = element_text(size = 14-2, face="bold", margin=margin(t=30,b=-30), hjust=0.025, color=subtitle_text_col),
+        plot.caption = element_text(size=9.5-1.5),
+        legend.key = element_rect(color="snow", fill = 'white'), legend.key.size=unit(13-2,"point"),
+        legend.text=element_text(size=7.5),
         plot.margin = unit(c(0.75, 0, 0.5, 0), "cm")
     ),
 
     # set map extent
-    coord_sf(xlim = c(make360(bbox$xmin+1), make360(bbox$xmax)), ylim = c(bbox$ymin, bbox$ymax), expand = FALSE, crs = st_crs(4326)), 
-    
+    coord_sf(xlim = c(make360(params$bbox$xmin+1), make360(params$bbox$xmax)), ylim = c(params$bbox$ymin, params$bbox$ymax), expand = FALSE, crs = st_crs(4326)),
+
     # labs
-    labs(x = "\n Longitude \n", y = "\n \n Latitude \n ") #,
-        # theme(plot.subtitle = element_text(size = 14, face="bold", margin=margin(t=30,b=-30), hjust=0.025, color=subtitle_text_col)),
-        # labs(subtitle = str_c("Week of: ", format(dates[i], "%b-%d-%Y")))
+    labs(x = "\n Longitude \n", y = "\n \n Latitude \n ")
 
     )
 }
 
 
-add_bathy <- function(data = bathy_df, depths = c(-140, -500), cols = c("azure3", "azure4")){
+add_bathy <- function(data = bathy_df, depths = c(-200), cols = c("azure3")){
     list(
     geom_contour(data=data, aes(x=make360(long), y=lat, z = z), colour = cols[1], linewidth = 0.75,
-                 breaks = c(depths[1])),
-        geom_contour(data=data, aes(x=make360(long), y=lat, z = z), colour = cols[2], linewidth = 0.75,
-                     breaks = c(depths[2]))
+                 breaks = c(depths[1]))
     )
 }
 
 add_cclme <- function(data = cclme_df){
     list(
          geom_polygon(data = data, aes(x = make360(long), y = lat.x, group = group), fill = 'gray85', alpha = 0.5) 
+    )
+}
+
+add_release_location <- function(data = release_loc){
+    list(
+        geom_point(data=data, aes(x=lon, y=lat), fill = "lightgray", color = "black", shape = 4, size = 5.5)
     )
 }
 
@@ -384,13 +418,68 @@ add_tzcf_contour <- function(data = eov_df, tzcf_color, tzcf_contour){
     
 }
 
-add_state_borders <- function(data = usa_360){
+add_state_borders <- function(data = usa){
     list(
-        geom_sf(data = usa_360, color = "snow", fill = "black", size=0.5)
+        geom_sf(data = data, color = "snow", fill = "black", size=0.5)
     )
 }
 
 ```
+
+```{r}
+
+add_turtle_pts <- function(data){
+    list(
+        geom_point(inherit.aes = FALSE, data = data, # point fill color
+            aes(x=lon,y=lat, color = as.factor(id)), stroke = 0.75, alpha = 0.90, size=2, show.legend=FALSE),
+        scale_colour_manual(values = rainbow(25)),
+        
+        geom_point(inherit.aes = FALSE, data = data, # point border color
+            aes(x=lon,y=lat, color = as.factor(id)), stroke = 0.75, alpha = 0.90, size=2, show.legend=FALSE), 
+        scale_colour_manual(values = rainbow(25))
+    )
+}
+           
+add_turtle_lines <- function(data){
+    list(
+        geom_path(data = data,
+            aes(x=lon,y=lat, color = as.factor(id), group = as.factor(id)), linewidth = 1.5, show.legend = FALSE) 
+    )
+}  
+
+```
+
+
+```{r}
+# chl cpal
+add_chl_cpal <- function(limits = cbar_limits, breaks=cbar_breaks, labels=format(cbar_labels), cbar_title){
+    list(
+        scale_fill_gradientn(trans="log10", colours = cpal[11:length(cpal)], name = cbar_title,
+        limits = limits,
+        breaks=breaks, labels=labels)
+    )
+}
+
+# sst cpal
+add_sst_cpal <- function(labels = cbar_breaks, cbar_title){
+    list(
+        scale_fill_manual(values = cpal[7:length(cpal)], name = cbar_title, 
+        labels = labels, drop = F, na.translate = F,
+        guide = guide_legend(label.vjust=+1.2, barwidth = 1, frame.colour = "black", ticks.colour = "black", ncol =1, reverse=T)) 
+    )
+}
+
+# ssta cpal
+add_ssta_cpal <- function(labels = cbar_breaks, cbar_title){
+    list(
+        scale_fill_manual(values = cpal[2:length(cpal)], name = cbar_title, 
+        labels = cbar_breaks, drop = F, na.translate = F,
+        guide = guide_legend(label.vjust=+1.2, barwidth = 1, frame.colour = "black", ticks.colour = "black", ncol =1, reverse=F)) 
+    )
+}
+    
+```
+
 
 
 ### Assign Plot Titles
@@ -420,17 +509,246 @@ if(params$eov == 'sst'){
 
 ```
 
-
-## PICK UP HERE!!! SET DAILY OR WEEKLY INPUTS!
 ```{r}
 
-## use image magick
-library(lubridate)
-dates <- seq(as.Date("2023-07-16"), as.Date("2023-12-24"), by = "weeks")
-# dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)-1), by = "weeks") # assumes using end of week: week -1
-dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)), by = "weeks") # assumes start of week
+anim_title <- str_c("STRETCH ", str_to_title(params$timestep), " turtle movements (n=25) with ", title_eov)
 
-n = length(dates)
+anim_caption = str_c("\n Raw tracking data from ARGOS averaged to 1 " , params$timestep , " location per turtle (circles)\n\n", 
+                         "California Current Large Marine Ecosystem (CCLME) shaded in gray\n", 
+                         "Thermal Corridor region (box). Ship release location (X)\n",
+                          caption_iso, "Continental depths of 200m (light gray lines)\n",
+                         "\n Data source: ", eov_source," \n Dana Briscoe"
+                                 )
+```
 
+
+
+### Set CC-EOV Daily/Weekly Timestep
+```{r set-dates-for-anim}
+
+if(identical(unique(turtles_df_anim$date),unique(eov_df_anim$date))){
+    
+    if (params$timestep == 'daily'){
+
+    dates <- seq(as.Date(params$enddate %m+% months(-1)), as.Date(params$enddate), by = "1 day")
+    
+    } else if (params$timestep == 'weekly'){
+
+    # dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)-1), by = "weeks") # assumes using end of week: week -1
+    dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)), by = "weeks") # assumes start of week
+
+    }
+
+    n = length(dates)
+    
+} else {
+    print('error. turtle-eov dates do not match.')
+}
+
+```
+
+## Plot Frames
+```{r lapply-tracks-plot-list}
+
+tracks_plot_list <- 
+    lapply(seq(1,n), function(i) {
+
+        eov_frame = eov_df_anim %>% filter(date == dates[i]) 
+        turtles_frame = turtles_df_anim %>% filter(date <= dates[i]) 
+        
+        # plot up
+            ggplot() +
+                
+            # add eov raster    
+            {        
+                if (params$eov =='sst' | params$eov == 'ssta'){        
+                    ## for discrete color pal ---        
+                    geom_contour_filled(data = eov_frame %>% subset(!is.na(val)) ,
+                                        aes(x = x, y = y, z = val, group = date), breaks = seq(cbar_limits[1],cbar_limits[2],cbar_int)) 
+                } else if (params$eov =='chlaWeekly') {  
+                    ## for continuous color pal---                    
+                    geom_raster(data = eov_frame,
+                                aes(x = x, y = y, fill = val, group = date), interpolate = TRUE) 
+                }
+                
+            }  +   
+                
+            # add bathy
+                {
+                    if (params$bathy) {
+                        add_bathy(data = bathy_df, depths = c(-200), )
+                    }
+                } +
+                
+            # add tzcf contour
+            {
+                if (!is.null(tzcf_contour)) {
+                   add_tzcf_contour(data = eov_frame, tzcf_color, tzcf_contour)
+                }
+                
+            } +
+            
+            # add coast 
+            add_baseplot() +
+                
+            # add state borders
+            {
+                if (!is.null(params$state_borders)) {
+                  add_state_borders()
+                }
+                
+            } +
+                
+             # add cclme
+            {
+                if (!is.null(params$cclme)) {
+                  add_cclme()
+                }
+                
+            } +
+             
+            # add tcms box
+            {
+                if (params$tcms){
+                    add_tcms_box(tcms_color)
+                }
+                
+            } +
+            
+            # add colorbar    
+                {
+                if (params$eov =='chlaWeekly'){
+                    
+                   add_chl_cpal(limits = cbar_limits, breaks=cbar_breaks, labels=format(cbar_labels), cbar_title)
+                    
+                } else if (params$eov =='sst') {
+                    
+                  add_sst_cpal(labels = cbar_breaks, cbar_title)    
+                    
+                } else if (params$eov =='ssta') {
+                    
+                  add_ssta_cpal(labels = cbar_breaks, cbar_title) 
+                }
+                    
+            } +
+                
+            # turtle points -- wc pal
+            add_turtle_pts(data = turtles_frame %>% filter(date == dates[i]) %>% mutate(lon = make360(lon))) +
+                
+            add_turtle_lines(data = turtles_frame %>% mutate(lon = make360(lon))) +
+                
+                
+            # dynamic labs
+            labs(subtitle = str_c("Week of: ", format(dates[i], "%b-%d-%Y"))) +
+                
+            # labs(title = anim_title,
+            #      caption = anim_caption
+            #      ) +
+                
+        # add custom theme for anim frames
+        add_anim_theme(bbox = params$bbox, subtitle_text_col = "snow")
+            
+    })
+                
+```
+
+
+```{r set-plot-list-names}
+# name the elements in the list
+wk_names <- str_c("plot_", unique(dates))
+names(tracks_plot_list) <- wk_names
+
+```
+
+### Resize Legend
+```{r resize-cbar}
+# resize colorbar
+panel_height <- unit(1,"npc") - sum(ggplotGrob(tracks_plot_list[[1]])[["heights"]][-3]) - unit(1,"line")
+# panel_height <- unit(1.5,"npc") - sum(ggplotGrob(tracks_plot_list[[1]])[["heights"]][-3]) - unit(1,"line")
+
+# apply new height to indiv plot frames
+
+tracks_plot_list <- 
+    lapply(seq(1,n), function(i) {
+        tracks_plot_list[[i]] <- tracks_plot_list[[i]] + 
+            
+            {        
+                if (params$eov =='sst'){   
+                    guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, barheight = panel_height, limits = cbar_breaks,
+                                               ticks = TRUE)) 
+                } else if(params$eov == 'ssta')  {
+                    guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, barheight = panel_height, limits = cbar_breaks,
+                                               ticks = TRUE))   
+                } else if (params$eov == 'chlWeekly') {
+                    guides(fill = guide_colourbar(
+                        barheight = panel_height,
+                        ticks = TRUE)
+                    )
+                }
+            } +
+            labs(title = anim_title, caption = anim_caption) 
+    })
+
+```
+
+## Save Frames
+```{r}
+# save plots as pngs (to create gif)
+save_figs = TRUE
+
+if(save_figs){
+    lapply(seq(1:length(wk_names)), function(i) { ggsave(tracks_plot_list[[i]], 
+                                                         file = str_c('../anim_figs/', i, "_", dates[i], "_", params$eov, "_tracks.png"), 
+                                                         width=14, 
+                                                         # scale = 2,
+                                                         # height=8.5,   # comment out height to get auto aspect ratio set!
+                                                         bg = 'white')
+    })
+}
+
+```
+
+## Movie Time
+### Sort Files in Chron Order
+```{r}
+# create movie
+library(gtools)
+
+# List plots files
+flist <- list.files('../anim_figs', pattern = "_tracks",full.names=T)
+plot_files <- flist[grepl(str_c(params$eov,"_"), flist, fixed=TRUE)] 
+pfiles <- plot_files[order(basename(plot_files))]
+
+pfiles <- gtools::mixedsort(pfiles)
+
+```
+
+# Crop PNG Frames
+```{r }
+# #intermediate step to crop PNG file and reduce negative space
+
+## use crop image source function ------
+source('crop_image.R')
+crop_image(pfiles)
+
+```
+
+### Animate as GIF
+```{r animate-gif}
+# Read the plots as image
+plots_list <- lapply(pfiles, image_read)
+
+# Join the list of plots
+plot_joined <- image_join(plots_list)
+
+# Create animation, defining the frames per second (fps)
+plot_animated <- image_animate(plot_joined, fps = 1)
+
+# Write animation as gif
+image_write(image = plot_animated,
+            path = str_c('../anim_figs/', "stretch_2023_",params$timestep,"_animation_", params$enddate, "_", params$eov, ".gif"))
+
+
+## Use CONVERTIO online for mp4 generation
 ```
 
