@@ -4,10 +4,10 @@ author: "Dana K Briscoe"
 date: '`r Sys.Date()`'
 output: html_document
 params:
-  eov: "sst"
+  eov: "MBchla8day_LonPM180"
   enddate: !r Sys.Date() - 2
   startdate: !r as.Date('2023-07-10')
-  timestep: "daily"
+  timestep: "weekly"
   nc_path: "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
   bbox: !r tibble::tibble(ymin=25, ymax=50,xmin=-170, xmax=-110)
   cclme: TRUE
@@ -113,21 +113,24 @@ turtlesgeo <- prep_turtles_sp(df = daily_avg_data)
 # Set param to run
 if(params$eov == 'sst'){
     nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/deploy_reports"
-    params$varname <- "sst_dhw_5km"
+    varname <- "sst_dhw_5km"
 } else if (params$eov == "ssta"){
     nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
-    params$varname <- "ssta_dhw_5km"
+    varname <- "ssta_dhw_5km"
 } else if (params$eov == "chlaWeekly"){
     nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
-    params$varname <- "chlaWeekly" 
-} 
+    varname <- "chlaWeekly" 
+} else if(params$eov == "MBchla8day_LonPM180"){
+    nc_path <- "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
+   varname <- "MBchla8day_LonPM180" 
+}
 
 ```
 
 ```{r get-ncdf-list}
 # get ncdf list
 
-ncs <- list.files(nc_path, pattern = params$varname, full.names=T)
+ncs <- list.files(nc_path, pattern = varname, full.names=T)
 print(str_c('most recent ncdf - ', ncs[length(ncs)]))
 
 ```
@@ -176,12 +179,16 @@ if(length(fdates) != length(ncIn)){
         nc_dates <- ncIn %>% 
             map(~parseDT(., idx = 6, start=14, stop = 23, format="%Y-%m-%d")) %>%
             unlist() %>% as.Date() #%>%
+    } else if(params$eov == 'MBchla8day_LonPM180'){
+        nc_dates <- ncIn %>% 
+            map(~parseDT(., idx = 6, start=29, stop = 38, format="%Y-%m-%d")) %>%
+            unlist() %>% as.Date() #%>%
     }
     
     names(ras) <- nc_dates
 
 } else {
-    # names(ras) <- fdates
+    names(ras) <- nc_dates  # double check this works.
     print('confirm fdates')
 }
 
@@ -318,13 +325,13 @@ if(params$eov == 'sst'){
     
     zCuts <- seq(-5.5,6,0.5)
     
-} else if(params$eov == 'chlaWeekly'){
+} else if(params$eov == 'chlaWeekly' | params$eov == "MBchla8day_LonPM180"){
 
     cbar_breaks=c(0.03, 0.1, 0.2, 0.4,  2, 10, 30)
-    cbar_limits <- c(0.03, 30)
+    cbar_limits <- limits <- c(0.03, 30)
     cbar_labels=c(0.03, 0.1, 0.2, 0.4,  2, 10, 30)
     cbar_int <- 0.1
-    cbar_title <- 'Chl \n(mg/m^3) \n'
+    cbar_title <- 'Chl (mg/m^3) \n'
     
     tzcf_contour = NA #0.2
     tzcf_color = NA #'gray10'
@@ -519,21 +526,29 @@ if(params$eov == 'sst'){
     subtitle_text_col <- 'snow'
         caption_iso <- 'The white line represents the 18°C isotherm. '
         eov_source <- 'NOAA Coral Reef Watch 5km Daily SST'
-} else if(params$eov == 'chlaWeekly'){
-    title_eov <- 'chlorophyll-a (Chl)'
-    subtitle_text_col <- 'gray8'
-        caption_iso <- '' #'The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
-        eov_source <- 'VIIRS Near Real-Time, DINEOF Gap-Filled 9km Daily Chl Concentration'
-} else if(params$eov == 'current'){
-    title_eov <- 'surface current flow'
-    subtitle_text_col <- 'gray8'
-        caption_iso <- 'The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
-        eov_source <- 'Calculated from Near Real-Time Geostrohic Current (u, v) 0.2 degrees spatial res, Daily'
 } else if(params$eov == 'ssta'){
     title_eov <- 'sea surface temperature anomaly (SSTA)'
     subtitle_text_col <- 'gray8'
     caption_iso <- ''
     eov_source <- 'NOAA Coral Reef Watch 5km Daily SSTA'
+
+} else if(params$eov == 'chlaWeekly'){
+    title_eov <- 'chlorophyll-a (Chl)'
+    subtitle_text_col <- 'gray8'
+        caption_iso <- '' #'The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
+        eov_source <- 'VIIRS Near Real-Time, DINEOF Gap-Filled 9km Weekly Chl Concentration'
+        
+} else if(params$eov == 'MBchla8day_LonPM180'){
+    title_eov <- 'chlorophyll-a (Chl)'
+    subtitle_text_col <- 'gray8'
+        caption_iso <- '' #'The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
+        eov_source <- 'Chlorophyll-a, Aqua MODIS, Weekly Composite 0.025° Chl Concentration'
+        
+} else if(params$eov == 'current'){
+    title_eov <- 'surface current flow'
+    subtitle_text_col <- 'gray8'
+        caption_iso <- 'The 0.2 mg/m^3 isopleth (black line) represents the approximate TZCF position in the eastern North Pacific. '
+        eov_source <- 'Calculated from Near Real-Time Geostrohic Current (u, v) 0.2 degrees spatial res, Daily'
 }
 
 ```
@@ -568,11 +583,13 @@ if(identical(unique(turtles_df_anim$date),unique(eov_df_anim$date))){
 
     dates <- seq(as.Date(params$enddate %m+% months(-1)), as.Date(params$enddate), by = "1 day")
     
-    } else if (params$timestep == 'weekly'){
+    } else if (params$timestep == 'weekly' & params$eov != "MBchla8day_LonPM180"){
 
     # dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)-1), by = "weeks") # assumes using end of week: week -1
     dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)), by = "weeks") # assumes start of week
 
+    } else if (params$timestep == "weekly" & params$eov == "MBchla8day_LonPM180"){
+     dates <- seq(as.Date('2023-12-03'), as.Date(max(turtles_df_weekly$date)), by = "weeks") # assumes start of week
     }
 
     n = length(dates)
@@ -608,7 +625,7 @@ tracks_plot_list <-
                     ## for discrete color pal ---        
                     geom_contour_filled(data = eov_frame %>% subset(!is.na(val)) ,
                                         aes(x = x, y = y, z = val, group = date), breaks = seq(cbar_limits[1],cbar_limits[2],cbar_int)) 
-                } else if (params$eov =='chlaWeekly') {  
+                } else if (params$eov =='chlaWeekly' | params$eov =='MBchla8day_LonPM180') {  
                     ## for continuous color pal---                    
                     geom_raster(data = eov_frame,
                                 aes(x = x, y = y, fill = val, group = date), interpolate = TRUE) 
@@ -660,7 +677,7 @@ tracks_plot_list <-
             
             # add colorbar    
                 {
-                if (params$eov =='chlaWeekly'){
+                if (params$eov =='chlaWeekly' | params$eov == "MBchla8day_LonPM180"){
                     
                    add_chl_cpal(limits = cbar_limits, breaks=cbar_breaks, labels=format(cbar_labels), cbar_title)
                     
@@ -695,7 +712,7 @@ tracks_plot_list <-
             #      ) +
                 
         # add custom theme for anim frames
-        add_anim_theme(bbox = params$bbox, subtitle_text_col = "snow")
+        add_anim_theme(bbox = params$bbox, subtitle_text_col = subtitle_text_col)
             
     })
                 
@@ -714,6 +731,7 @@ names(tracks_plot_list) <- wk_names
 # resize colorbar
 panel_height <- unit(1,"npc") - sum(ggplotGrob(tracks_plot_list[[1]])[["heights"]][-3]) - unit(1,"line")
 # panel_height <- unit(1.5,"npc") - sum(ggplotGrob(tracks_plot_list[[1]])[["heights"]][-3]) - unit(1,"line")
+chl_panel_height <- unit(1,"npc") - sum(ggplotGrob(tracks_plot_list[[1]])[["heights"]][-5]) - unit(1,"line")
 
 # apply new height to indiv plot frames
 
@@ -728,11 +746,11 @@ tracks_plot_list <-
                 } else if(params$eov == 'ssta')  {
                     guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, barheight = panel_height, limits = cbar_breaks,
                                                ticks = TRUE))   
-                } else if (params$eov == 'chlWeekly') {
-                    guides(fill = guide_colourbar(
-                        barheight = panel_height,
-                        ticks = TRUE)
-                    )
+                }  else if (params$eov == 'chlWeekly' | params$eov == 'MBchla8day_LonPM180' & !params$subset_tcms) {
+                    guides(fill = guide_colourbar(barheight = panel_height, ticks = TRUE))
+                    
+                } else if (params$eov == 'chlWeekly' | params$eov == 'MBchla8day_LonPM180' & params$subset_tcms) {
+                    guides(fill = guide_colourbar(barheight = chl_panel_height, ticks = TRUE))
                 }
             } +
             
@@ -748,22 +766,6 @@ tracks_plot_list <-
 
 ```
 
-<!-- ```{r plot-tcms-subset-region} -->
-
-<!-- if(params$subset_tcms){ -->
-<!--     tracks_plot_list[[i]] <-  -->
-<!--         lapply(seq(1,n), function(i) { -->
-
-<!--             tracks_plot_list[[i]] <- tracks_plot_list[[i]] +  -->
-<!--                 add_bathy(data = bathy_df, depths = c(-200), cols = c("azure4")) + -->
-<!--                 update_map_extent(bbox = c(-138, -110, 25, 37)) -->
-
-<!--         }) -->
-
-<!-- } -->
-<!-- ``` -->
-
-
 
 ## Save Frames
 ```{r}
@@ -776,7 +778,7 @@ if(params$subset_tcms){
 } else {
     p_extent <- 'enpac'
 }    
-    
+
 
 if(save_figs){
     lapply(seq(1:length(wk_names)), function(i) { ggsave(tracks_plot_list[[i]], 
@@ -823,11 +825,15 @@ plots_list <- lapply(pfiles, image_read)
 plot_joined <- image_join(plots_list)
 
 # Create animation, defining the frames per second (fps)
-plot_animated <- image_animate(plot_joined, fps = 1)
+if(params$timestep == 'daily'){
+    plot_animated <- image_animate(plot_joined, fps = 2)
+} else if (params$timestep == 'weekly'){
+    plot_animated <- image_animate(plot_joined, fps = 1)
+}
 
 # Write animation as gif
 image_write(image = plot_animated,
-            path = str_c(dir, "stretch_2023_",params$timestep,"_animation_", params$enddate, "_", params$eov, ".gif"))
+            path = str_c(dir, "stretch_2023_",params$timestep,"_animation_", params$enddate, "_", params$eov,"_", p_extent ,".gif"))
 
 
 ## Use CONVERTIO online for mp4 generation

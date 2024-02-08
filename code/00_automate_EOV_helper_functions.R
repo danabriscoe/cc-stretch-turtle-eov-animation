@@ -80,6 +80,16 @@ get_ncdf_fdates <- function(x = params$eov, ncs){
             str_split(., "/") %>%
             purrr::map_chr(~ pluck(., 8)) %>%
             substr(., start=28, stop=37)
+    } else if(x == 'MBchla8day'){
+        fdates <- ncs %>% 
+            str_split(., "_") %>%
+            purrr::map_chr(~ pluck(., 3)) %>%
+            substr(., start=1, stop=10)
+    } else if(x == 'MBchla8day_LonPM180'){
+        fdates <- ncs %>% 
+            str_split(., "_") %>%
+            purrr::map_chr(~ pluck(., 4)) %>%
+            substr(., start=1, stop=10)
     }
     return(fdates)
 }
