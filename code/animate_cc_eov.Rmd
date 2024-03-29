@@ -4,16 +4,19 @@ author: "Dana K Briscoe"
 date: '`r Sys.Date()`'
 output: html_document
 params:
-  eov: "MBchla8day_LonPM180"
+  # eov: "MBchla8day_LonPM180"
+  eov: "sst"
   enddate: !r Sys.Date() - 2
   startdate: !r as.Date('2023-07-10')
   timestep: "weekly"
   nc_path: "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
   bbox: !r tibble::tibble(ymin=25, ymax=50,xmin=-170, xmax=-110)
-  cclme: TRUE
+  # cclme: TRUE
+  cclme: FALSE
   tcms: TRUE
   bathy: TRUE
   state_borders: TRUE
+  # subset_tcms: FALSE
   subset_tcms: TRUE
   plot_text_size: 12
 ---
@@ -188,7 +191,8 @@ if(length(fdates) != length(ncIn)){
     names(ras) <- nc_dates
 
 } else {
-    names(ras) <- nc_dates  # double check this works.
+    names(ras) <- fdates  # double check this works.
+    nc_dates <- fdates
     print('confirm fdates')
 }
 
@@ -287,11 +291,11 @@ if(exists("eov_df_daily")){
 
 if(params$eov == 'sst'){
     
-    limits = c(5,35)
+    limits = c(2,35)
     
     # goc masked
     cbar_breaks = seq(4, 30, 1)
-    cbar_limits = c(4, 31)
+    cbar_limits = c(2, 31)
     # cbar_limits <- c(6,31)
     cbar_int <- 1
     cbar_title <- 'SST (°C)'
@@ -554,8 +558,14 @@ if(params$eov == 'sst'){
 ```
 
 ```{r}
+# placeholder numbers for now -- need to dynamically update
+if(params$subset_tcms){
+    n_indivs = 7
+} else {
+n_indivs <- 25 
+} 
 
-anim_title <- str_c("STRETCH ", str_to_title(params$timestep), " turtle movements (n=25) with ", title_eov)
+anim_title <- glue::glue("STRETCH ", str_to_title(params$timestep), " turtle movements (n={n_indivs}) with ", title_eov)
 
 # anim_caption = str_c("\n Raw tracking data from ARGOS averaged to 1 " , params$timestep , " location per turtle (circles)\n\n", 
 #                          "California Current Large Marine Ecosystem (CCLME) shaded in gray\n", 
@@ -583,12 +593,12 @@ if(identical(unique(turtles_df_anim$date),unique(eov_df_anim$date))){
 
     dates <- seq(as.Date(params$enddate %m+% months(-1)), as.Date(params$enddate), by = "1 day")
     
-    } else if (params$timestep == 'weekly' & params$eov != "MBchla8day_LonPM180"){
+    } else if (params$timestep == 'weekly' & !params$subset_tcms){
 
     # dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)-1), by = "weeks") # assumes using end of week: week -1
     dates <- seq(as.Date(min(turtles_df_weekly$date)), as.Date(max(turtles_df_weekly$date)), by = "weeks") # assumes start of week
 
-    } else if (params$timestep == "weekly" & params$eov == "MBchla8day_LonPM180"){
+    } else if (params$timestep == "weekly"  & params$subset_tcms | params$eov == "MBchla8day_LonPM180"){
      dates <- seq(as.Date('2023-12-03'), as.Date(max(turtles_df_weekly$date)), by = "weeks") # assumes start of week
     }
 
@@ -600,6 +610,7 @@ if(identical(unique(turtles_df_anim$date),unique(eov_df_anim$date))){
 
 ```
 
+
 ## Plot Frames
 ```{r lapply-tracks-plot-list}
 
@@ -608,6 +619,15 @@ tracks_plot_list <-
 
         eov_frame = eov_df_anim %>% filter(date == dates[i]) 
         turtles_frame = turtles_df_anim %>% filter(date <= dates[i]) 
+        
+        # set spatial extent for calculating n distinct indivs in frame
+        if(params$subset_tcms){
+            n_indivs <- turtles_frame %>% filter(lat >= 25, lat <= 37, lon >= -138 & lon <= -110) %>%
+            summarise(n = n_distinct(id))
+        } else {
+        n_indivs <- turtles_frame  %>%
+            summarise(n = n_distinct(id))
+        }
         
         # if(params$timestep == 'daily'){
         #     startdate <- params$enddate %m+% months(-1)
@@ -800,7 +820,10 @@ library(gtools)
 # List plots files
 flist <- list.files(dir, pattern = "_tracks",full.names=T)
 plot_files <- flist[grepl(str_c(params$eov,"_"), flist, fixed=TRUE)] 
-pfiles <- plot_files[order(basename(plot_files))]
+
+plot_files_extent <- plot_files[grepl(p_extent, plot_files, fixed=TRUE)] 
+
+pfiles <- plot_files_extent[order(basename(plot_files_extent))]
 
 pfiles <- gtools::mixedsort(pfiles)
 
@@ -829,11 +852,13 @@ if(params$timestep == 'daily'){
     plot_animated <- image_animate(plot_joined, fps = 2)
 } else if (params$timestep == 'weekly'){
     plot_animated <- image_animate(plot_joined, fps = 1)
+     # plot_animated <- image_animate(plot_joined, fps = 2)
 }
 
 # Write animation as gif
 image_write(image = plot_animated,
-            path = str_c(dir, "stretch_2023_",params$timestep,"_animation_", params$enddate, "_", params$eov,"_", p_extent ,".gif"))
+            # path = str_c(dir, "stretch_2023_",params$timestep,"_animation_", params$enddate, "_", params$eov,"_", p_extent ,"fps_1.gif"))
+            path = str_c(dir, "stretch_2023_",params$timestep,"_animation_", params$enddate, "_", params$eov,"_", p_extent ,"fps_2.gif"))
 
 
 ## Use CONVERTIO online for mp4 generation

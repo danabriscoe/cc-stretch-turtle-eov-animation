@@ -342,9 +342,9 @@ if(save_ext == 'gif'){
 
 # eov='sst'
 eov = params$eov
-cclme = TRUE
+cclme = FALSE #TRUE
 tcms = TRUE
-bathy = TRUE
+bathy = FALSE #TRUE
 
 add_bathy <- function(depths = c(-140, -500), cols = c("azure3", "azure4")){
     list(
@@ -644,9 +644,10 @@ weekly_tracks_plot_list <-
                 labs(title = str_c("STRETCH Weekly turtle movements (n=25) with ", title_eov),
                      # subtitle = "Date: {frame_time}", 
                      caption = str_c("\n Raw tracking data from ARGOS averaged to 1 weekly location per turtle (circles)\n\n", 
-                                     "California Current Large Marine Ecosystem (CCLME) shaded in light gray\n", 
+                                     # "California Current Large Marine Ecosystem (CCLME) shaded in light gray\n", 
                                      "Thermal Corridor region (box). Ship release location (X)\n",
-                                     caption_iso, "Continental depths of 140m and 500m (gray lines)\n",
+                                     caption_iso, 
+                                     # "Continental depths of 140m and 500m (gray lines)\n",
                                      "\n Data source: ", eov_source," \n Dana Briscoe")) +
                 # caption = test) + #"Raw tracking data from ARGOS averaged to 1 daily location per turtle.\n The white line represents the 17°C isotherm. Ship release location (X). \n Data source: NOAA Coral Reef Watch 5km Daily SST \n Dana Briscoe") +
                 theme(
@@ -767,11 +768,11 @@ plots_list <- lapply(pfiles, image_read)
 plot_joined <- image_join(plots_list)
 
 # Create animation, defining the frames per second (fps)
-plot_animated <- image_animate(plot_joined, fps = 1)
+plot_animated <- image_animate(plot_joined, fps = 2)
 
 # Write animation as gif
 image_write(image = plot_animated,
-            path = str_c('./anim_figs/', "stretch_2023_weekly_animation_", dates[2], "_", eov, ".gif"))
+            path = str_c('./anim_figs/', "stretch_2023_weekly_animation_", dates[2], "_", eov, "_fps2.gif"))
 
 
 ## Use CONVERTIO online for mp4 generation
