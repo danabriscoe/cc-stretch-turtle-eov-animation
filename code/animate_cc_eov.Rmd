@@ -9,15 +9,16 @@ params:
   enddate: !r Sys.Date() - 2
   startdate: !r as.Date('2023-07-10')
   timestep: "weekly"
+  # timestep: "daily"
   nc_path: "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
   bbox: !r tibble::tibble(ymin=25, ymax=50,xmin=-170, xmax=-110)
-  # cclme: TRUE
-  cclme: FALSE
+  cclme: TRUE
+  # cclme: FALSE
   tcms: TRUE
   bathy: TRUE
   state_borders: TRUE
-  # subset_tcms: FALSE
-  subset_tcms: TRUE
+  subset_tcms: FALSE
+  # subset_tcms: TRUE
   plot_text_size: 12
 ---
 
@@ -291,7 +292,8 @@ if(exists("eov_df_daily")){
 
 if(params$eov == 'sst'){
     
-    limits = c(2,35)
+    # limits = c(2,35)
+     limits = c(2,31)
     
     # goc masked
     cbar_breaks = seq(4, 30, 1)
@@ -309,7 +311,8 @@ if(params$eov == 'sst'){
 
     cpal <- c(smooth_rainbow(length(seq(floor(limits[1]), ceiling(limits[2]), 1)), range = c(0, 0.9)), "#9e2a2b", "firebrick4")
     
-    zCuts <- seq(4,34,1)
+    # zCuts <- seq(4,34,1)
+     zCuts <- seq(4,30,1)
     
 } else if(params$eov == 'ssta'){
     
@@ -420,7 +423,8 @@ add_bathy <- function(data = bathy_df, depths = c(-200), cols = c("azure4")){
 
 add_cclme <- function(data = cclme_df){
     list(
-         geom_polygon(data = data, aes(x = make360(long), y = lat.x, group = group), fill = 'gray85', alpha = 0.5) 
+         # geom_polygon(data = data, aes(x = make360(long), y = lat.x, group = group), fill = 'gray85', alpha = 0.5) 
+         geom_polygon(data = data, aes(x = make360(long), y = lat.x, group = group), fill = NA, color = 'gray85', alpha = 0.5) 
     )
 }
 
@@ -503,7 +507,8 @@ add_chl_cpal <- function(limits = cbar_limits, breaks=cbar_breaks, labels=format
 # sst cpal
 add_sst_cpal <- function(labels = cbar_breaks, cbar_title){
     list(
-        scale_fill_manual(values = cpal[7:length(cpal)], name = cbar_title, 
+        # scale_fill_manual(values = cpal[7:length(cpal)], name = cbar_title,
+        scale_fill_manual(values = cpal[3:length(cpal)], name = cbar_title,
         labels = labels, drop = F, na.translate = F,
         guide = guide_legend(label.vjust=+1.2, barwidth = 1, frame.colour = "black", ticks.colour = "black", ncol =1, reverse=T)) 
     )
@@ -591,7 +596,8 @@ if(identical(unique(turtles_df_anim$date),unique(eov_df_anim$date))){
     
     if (params$timestep == 'daily'){
 
-    dates <- seq(as.Date(params$enddate %m+% months(-1)), as.Date(params$enddate), by = "1 day")
+    # dates <- seq(as.Date(params$enddate %m+% months(-1)), as.Date(params$enddate), by = "1 day")
+        dates <- seq(as.Date('2023-12-03'), as.Date(params$enddate), by = "1 day") # special for alberto
     
     } else if (params$timestep == 'weekly' & !params$subset_tcms){
 
