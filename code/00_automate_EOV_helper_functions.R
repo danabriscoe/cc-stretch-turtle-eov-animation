@@ -171,7 +171,7 @@ mask_goc_bathy <- function(df = bathy_df, .poly = goc_mask){
         st_difference(pts, st_union(st_geometry(ply)))
     
     # plot(bathy_masked)
-    bathy_masked_df <- bathy_masked %>% sf_to_df( ., fill = TRUE) %>%
+    bathy_masked_df <- bathy_masked %>% sfheaders::sf_to_df( ., fill = TRUE) %>%
         as.data.frame() %>%
         dplyr::select(c(x, y, z)) %>%
         setNames(c("long","lat", "z"))

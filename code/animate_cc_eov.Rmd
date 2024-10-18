@@ -4,10 +4,12 @@ author: "Dana K Briscoe"
 date: '`r Sys.Date()`'
 output: html_document
 params:
+  release_yr: 24 #cohort1 #historic
   # eov: "MBchla8day_LonPM180"
-  eov: "sst"
+  eov: "ssta"
   enddate: !r Sys.Date() - 2
-  startdate: !r as.Date('2023-07-10')
+  # startdate: !r as.Date('2023-07-10')
+  startdate: !r as.Date('2024-07-08')
   timestep: "weekly"
   # timestep: "daily"
   nc_path: "/Users/briscoedk/dbriscoe@stanford.edu - Google Drive/My Drive/ncdf/npac"
@@ -55,6 +57,8 @@ library(gifski)
 library(magick)
 library(gtools)
 
+library(here)
+
 ```
 
 ```{r source-helper-funcs}
@@ -65,9 +69,20 @@ source('crop_image.R')
 
 
 ## Load CC Data ----
+
+```{r}
+# get list of raw files
+if(params$release_yr == "23"){
+    files = list.files('~/Downloads/batch/', pattern = "All.csv",recursive=T, full.names=T) # temp location while tags still running - change dir later
+} else if(params$release_yr == "24"){
+    files = list.files('~/Downloads/batch_cohort2/', pattern = "All.csv",recursive=T, full.names=T) # temp location while tags still running - change dir later
+}
+```
+
+
 ```{r load-raw-cc-data}
 ## Pull Raw Tracking Data -----
-files <- list.files('~/Downloads/batch/', pattern = "All.csv", recursive=T, full.names=T)
+# files <- list.files('~/Downloads/batch/', pattern = "All.csv", recursive=T, full.names=T)
 
 raw_data <- rbindlist(lapply(files, fread)) %>%
     dplyr::select('Platform ID No.', 'Latitude', 'Longitude', 'Loc. quality', 'Loc. date') %>%
@@ -76,14 +91,26 @@ raw_data <- rbindlist(lapply(files, fread)) %>%
            lon = 3,
            loc_quality = 4,
            date = 5
-    ) %>%
-    mutate(date = as.POSIXct(date, format= "%m/%d/%Y %H:%M:%S", tz="UTC")) %>%
-    filter(lat > 0 & lat < 60) %>%
-    filter(date >= '2023-07-11 04:30:00') %>%
+    ) 
+
+```
+
+```{r}
+if(params$release_yr == "23"){
+    raw_data <- raw_data %>%
+        mutate(date = as.POSIXct(date, format= "%m/%d/%Y %H:%M:%S", tz="UTC")) %>%
+        filter(lat > 0 & lat < 60) %>%
+        filter(date >= '2023-07-11 04:30:00') %>%
+        filter(loc_quality != 0)  # added 17 Jan 2024 -- to deal with raw argos bad data point (tsubaki, 12 jan 2024 locs - remove loc class = 0)
+
+} else if(params$release_yr == "24"){
+    raw_data <- raw_data %>%
+        mutate(date = as.POSIXct(date, format= "%m/%d/%Y %H:%M:%S", tz="UTC")) %>%
+        filter(lat > 0 & lat < 60) %>%
+        filter(date >= '2024-07-08 04:30:00') %>%
+        filter(loc_quality != 0)  
+}
     
-    filter(loc_quality != 0)  # added 17 Jan 2024 -- to deal with raw argos bad data point (tsubaki, 12 jan 2024 locs - remove loc class = 0)
-
-
 ```
 
 
@@ -94,8 +121,8 @@ source('01_prep_wc_data.R')
 ```
 
 ```{r 01-rename dfs}
-raw_df <- raw_data_cohort_1_w_names
-daily_avg_data <- daily_avg_data_cohort_1 
+raw_df <- raw_data_cohort_w_names
+daily_avg_data <- daily_avg_data_cohort
 
 # misc - pull uniqud id info for later?
 ids = unique(daily_avg_data$id) # prefer to use t names instead
@@ -149,7 +176,13 @@ fdates <- get_ncdf_fdates(x = params$eov, ncs)
 # get dates that match track dates
 tracking_dates <- unique(daily_avg_data$date)
 eov_dates <- as.Date(unique(fdates))
+
+if(params$release_yr == "23"){
 deploy_date <- as.Date("2023-07-10")
+
+} else if(params$release_yr == "24"){
+    deploy_date <- as.Date("2024-07-07")
+}
 
 daily_dates <- intersect(as.character(tracking_dates), as.character(eov_dates))
 ```
@@ -323,14 +356,29 @@ if(params$eov == 'sst'){
     
     tcms_color = "gray40"
     
-    cbar_breaks <- seq(-5.5,6,0.5)
-    cbar_limits <- c(-5.5,6)
+    # cbar_breaks <- seq(-5.5,6,0.5)
+    # cbar_limits <- c(-5.5,6)
+    # cbar_int <- 0.5
+    # cbar_title <- 'SSTa (°C)\n'
+    # 
+    # cpal <- rev(c("#48090B", "#540b0e", rev(brewer.pal(9, "YlOrRd")),"white", brewer.pal(9, "Blues"), "#06224C", "#031126", "#020813"))
+    # 
+    # zCuts <- seq(-5.5,6,0.5)
+    
+    # revised oct 2024 to deal with extreme vals / cbar inconsistencies
+    
+    cbar_breaks <- seq(-4,4.5,0.5)
+    cbar_limits <- c(-4,4.5)
     cbar_int <- 0.5
-    cbar_title <- 'SST (°C)\n'
-
-    cpal <- rev(c("#48090B", "#540b0e", rev(brewer.pal(9, "YlOrRd")),"white", brewer.pal(9, "Blues"), "#06224C", "#031126", "#020813"))
+    cbar_title <- 'SSTa (°C)\n'
+    
+    cpal <- rev(c("#48090B", "#540b0e", rev(brewer.pal(9, "YlOrRd")),"white", brewer.pal(9, "Blues"), "#06224C", "#031126"))
     
     zCuts <- seq(-5.5,6,0.5)
+   
+    cbar_breaks <- c('≥ 4', cbar_breaks[2:16], '≤ -4')
+    
+    
     
 } else if(params$eov == 'chlaWeekly' | params$eov == "MBchla8day_LonPM180"){
 
@@ -376,7 +424,12 @@ usa <- get_state_borders()
 ```
 
 ```{r assign-cohort1-release-loc}
-release_loc = data.frame(lat=39.315, lon=213.9333)
+if(params$release_yr == "23"){
+    release_loc = data.frame(lat=39.315, lon=213.9333)
+} else if(params$release_yr == "24"){
+    release_loc = data.frame(lat=39.55778, lon=211.5045)
+}
+
 ```
 
 
@@ -428,17 +481,64 @@ add_cclme <- function(data = cclme_df){
     )
 }
 
-add_release_location <- function(data = release_loc){
+# # add_release_location <- function(data = release_loc){
+# #     list(
+# #         geom_point(data=data, aes(x=lon, y=lat), fill = "lightgray", color = "black", shape = 4, size = 5.5)
+# #     )
+# # }
+# 
+# add_release_location <- function(data = release_loc){
+#     list(
+#         geom_point(aes(x=make360(release_loc$lon), y=release_loc$lat),colour="gray20", size=1),
+#         geom_point(aes(x=make360(release_loc$lon), y=release_loc$lat),shape = 21,size = 2,colour = "gray20", stroke = 1)
+#     )
+# }
+
+add_release_location_label <- function(data = release_loc, seg_x=2, seg_y=1, label = "Release\nLocation"){
     list(
-        geom_point(data=data, aes(x=lon, y=lat), fill = "lightgray", color = "black", shape = 4, size = 5.5)
+        annotate(geom = "text", x = data$lon-seg_x, y = data$lat-seg_y, label = label, hjust = "right")
     )
 }
 
+add_release_location_segment <- function(data = release_loc, seg_x=2, seg_y=1){
+    list(
+        annotate(
+        geom = "segment", x = data$lon, y = data$lat, xend = data$lon-seg_x, yend = data$lat-seg_y)
+    )
+}
+
+annotate_text <- function(text_x = make360(-122), text_y = 20, label = " Release Location", text_col = "white", text_size = 4){
+    list(
+        geom_text(size=4, colour=text_col,
+          aes(label = label, x = text_x, y = text_y), vjust = 0, hjust = 0)
+          # annotate("pointrange", 
+          #  x = text_x-4,
+          #  y = text_y, ymin = text_y, ymax = text_y,
+          #  label = label, col = text_col, size = pt_size),        
+          # annotate("text", 
+          #  x = text_x,
+          #  y = text_y, 
+          #  label = label, col = text_col, size = text_size)
+    )
+}
+    
 add_tcms_box <- function(tcms_color = "white"){
     list(
          geom_rect(aes(xmin=225,xmax=243,ymin=25.25,ymax=35), colour=tcms_color,alpha=0, size=0.65) 
     )
 }
+
+# add_tcms_box_legend <- function(text_x = make360(-122), text_y = 19, label = " Thermal Corridor Study Area", text_col = "white", text_size = 4){
+#     list(
+#         # geom_text(size=4, colour=text_col, 
+#         #   aes(label = label, x = text_x, y = text_y), vjust = 0, hjust = 0)
+#           annotate("text", 
+#            x = text_x,
+#            y = text_y, 
+#            label = label, col = text_col, size = text_size)
+# 
+#     )
+# }
 
 add_tzcf_contour <- function(data = eov_df, tzcf_color, tzcf_contour){
     list(
@@ -465,8 +565,12 @@ update_map_extent <- function(bbox = c(-130, -110, 25, 50)){
 
 ```{r}
 
+# set specific color pal length
+n_cols <- length(unique(turtles_df$id))
+
+
 idColors <-
-  setNames( c(rainbow(25))
+  setNames( c(rainbow(n_cols))
             , levels(turtles_df_anim$id)  )
 
 add_turtle_pts <- function(data){
@@ -515,13 +619,24 @@ add_sst_cpal <- function(labels = cbar_breaks, cbar_title){
 }
 
 # ssta cpal
+# add_ssta_cpal <- function(labels = cbar_breaks, cbar_title){
+#     list(
+#         scale_fill_manual(values = cpal[2:length(cpal)], name = cbar_title, 
+#         labels = cbar_breaks, drop = F, na.translate = F,
+#         guide = guide_legend(label.vjust=+1.2, barwidth = 1, frame.colour = "black", ticks.colour = "black", ncol =1, reverse=F)) 
+#     )
+# }
+
 add_ssta_cpal <- function(labels = cbar_breaks, cbar_title){
     list(
-        scale_fill_manual(values = cpal[2:length(cpal)], name = cbar_title, 
-        labels = cbar_breaks, drop = F, na.translate = F,
-        guide = guide_legend(label.vjust=+1.2, barwidth = 1, frame.colour = "black", ticks.colour = "black", ncol =1, reverse=F)) 
+        scale_fill_manual(#values = cpal[1:length(cpal)], 
+          values = cpal[4:length(cpal)], 
+          name = cbar_title, 
+          labels = cbar_breaks_l, drop = F, na.translate = F, 
+          guide = guide_legend(label.vjust=+1.2, barwidth = 1, frame.colour = "black", ticks.colour = "black", ncol =1, reverse=F)) 
     )
 }
+
     
 ```
 
@@ -567,7 +682,12 @@ if(params$eov == 'sst'){
 if(params$subset_tcms){
     n_indivs = 7
 } else {
-n_indivs <- 25 
+    if(params$release_yr == "23"){
+        n_indivs = length(unique(turtles_df_anim$id))
+    } else if(params$release_yr == "24"){
+        n_indivs = length(unique(turtles_df_anim$id))
+    }
+
 } 
 
 anim_title <- glue::glue("STRETCH ", str_to_title(params$timestep), " turtle movements (n={n_indivs}) with ", title_eov)
@@ -579,9 +699,10 @@ anim_title <- glue::glue("STRETCH ", str_to_title(params$timestep), " turtle mov
 #                          "\n Data source: ", eov_source," \n Dana Briscoe"
 #                                  )
 
-anim_caption = str_c("\n Raw tracking data from ARGOS averaged to 1 " , params$timestep , " location per turtle (circles)\n\n", 
+anim_caption = str_c("\n Raw tracking data from ARGOS averaged to 1 " , params$timestep , " location per turtle (color lines)\n\n", 
                          "California Current Large Marine Ecosystem (CCLME) shaded in gray\n", 
-                         "Continental depths of 200m (gray lines). Ship release location (X)\n",
+                         # "Continental depths of 200m (gray lines). Ship release location (white circles)\n",
+                     "Continental depths of 200m (gray lines)\n",
                           caption_iso, "Thermal Corridor region (box)\n",
                          "\n Data source: ", eov_source," \n Dana Briscoe"
                                  )
@@ -647,10 +768,24 @@ tracks_plot_list <-
                 
             # add eov raster    
             {        
-                if (params$eov =='sst' | params$eov == 'ssta'){        
+                if (params$eov =='sst'){        
                     ## for discrete color pal ---        
                     geom_contour_filled(data = eov_frame %>% subset(!is.na(val)) ,
                                         aes(x = x, y = y, z = val, group = date), breaks = seq(cbar_limits[1],cbar_limits[2],cbar_int)) 
+                    
+                } else if (params$eov == 'ssta'){     
+                    eov_frame = eov_frame |>
+                        mutate(val = case_when(
+                            val > 4 ~ 4,
+                            val < -4 ~ -4,
+                            TRUE ~ val
+                        )) |>
+                        drop_na()
+                    
+                    geom_contour_filled(data = eov_frame %>% subset(!is.na(val)) ,
+                    aes(x = x, y = y, z = val, group = date), breaks = seq(cbar_limits[1],cbar_limits[2],cbar_int)) 
+                 
+                    
                 } else if (params$eov =='chlaWeekly' | params$eov =='MBchla8day_LonPM180') {  
                     ## for continuous color pal---                    
                     geom_raster(data = eov_frame,
@@ -723,6 +858,13 @@ tracks_plot_list <-
                 
             add_turtle_lines(data = turtles_frame %>% mutate(lon = make360(lon))) +
                 
+            
+            # add release location and text
+            add_release_location(release_loc) +
+            add_release_location_label(data = release_loc, seg_x = 2, seg_y = 1, label = "Release\nLocation") +
+            add_release_location_segment(data = release_loc, seg_x = 2, seg_y = 1) +
+    
+                
                 
             # dynamic labs
             {
@@ -752,7 +894,7 @@ names(tracks_plot_list) <- wk_names
 
 ```
 
-### Resize Legend
+### Resize Colorbar
 ```{r resize-cbar}
 # resize colorbar
 panel_height <- unit(1,"npc") - sum(ggplotGrob(tracks_plot_list[[1]])[["heights"]][-3]) - unit(1,"line")
@@ -761,36 +903,72 @@ chl_panel_height <- unit(1,"npc") - sum(ggplotGrob(tracks_plot_list[[1]])[["heig
 
 # apply new height to indiv plot frames
 
-tracks_plot_list <- 
+tracks_plot_list <-
     lapply(seq(1,n), function(i) {
-        tracks_plot_list[[i]] <- tracks_plot_list[[i]] + 
-            
-            {        
-                if (params$eov =='sst'){   
+        tracks_plot_list[[i]] <- tracks_plot_list[[i]] +
+
+            {
+                if (params$eov =='sst'){
                     guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, barheight = panel_height, limits = cbar_breaks,
-                                               ticks = TRUE)) 
+                                               ticks = TRUE))
                 } else if(params$eov == 'ssta')  {
-                    guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, barheight = panel_height, limits = cbar_breaks,
-                                               ticks = TRUE))   
+                    guides(fill = guide_legend(title = cbar_title, ncol=1, reverse=T, #barheight = panel_height, 
+                                               limits = cbar_breaks,
+                                               ticks = TRUE))
                 }  else if (params$eov == 'chlWeekly' | params$eov == 'MBchla8day_LonPM180' & !params$subset_tcms) {
                     guides(fill = guide_colourbar(barheight = panel_height, ticks = TRUE))
-                    
+
                 } else if (params$eov == 'chlWeekly' | params$eov == 'MBchla8day_LonPM180' & params$subset_tcms) {
                     guides(fill = guide_colourbar(barheight = chl_panel_height, ticks = TRUE))
                 }
             } +
-            
+
             {
                 if(params$subset_tcms){
                     # add_bathy(data = bathy_df, depths = c(-200), cols = c("azure4")) +
                     update_map_extent(bbox = c(-138, -110, 25, 37))
                 }
             } +
-            
-            labs(title = anim_title, caption = anim_caption) 
+
+            labs(title = anim_title, caption = anim_caption)
     })
 
 ```
+
+
+## Add N Compass | Scalebar - pick up later
+```{r}
+# library(ggspatial)
+# 
+# tracks_plot_list <-
+#     lapply(seq(1,n), function(i) {
+#         tracks_plot_list[[i]] <- tracks_plot_list[[i]] +
+# 
+#         ggsn::scalebar(x.min = make360(-168), x.max = make360(-110),
+#                        # y.min = 16.5, y.max = 50,
+#                        y.min = 26.5, y.max = 50,
+#                        dist = 300, transform = TRUE,
+#                        height = 0.01,
+#                        st.dist = 0.02, st.bottom = TRUE, st.size = 2,
+#                        
+#                        location = "bottomleft",
+#                        dist_unit = "km",
+#                        model = 'WGS84',
+#                        box.fill = c(NA),
+#                        box.color = "gray10",
+#                        st.color = "gray10") 
+# 
+# 
+#     ggsn::north2(tracks_plot_list[[i]],  x = 0.235, y=0.15, scale = 0.05, symbol = 1) +
+# 
+#     ggspatial::annotation_north_arrow(location = "bl", which_north = "true",
+#                            pad_x = unit(0.68, "in"), pad_y = unit(0.5, "in"),
+#                            style = north_arrow_fancy_orienteering)
+# 
+#     })
+
+```
+
 
 
 ## Save Frames
@@ -864,7 +1042,7 @@ if(params$timestep == 'daily'){
 # Write animation as gif
 image_write(image = plot_animated,
             # path = str_c(dir, "stretch_2023_",params$timestep,"_animation_", params$enddate, "_", params$eov,"_", p_extent ,"fps_1.gif"))
-            path = str_c(dir, "stretch_2023_",params$timestep,"_animation_", params$enddate, "_", params$eov,"_", p_extent ,"fps_2.gif"))
+            path = str_c(dir, "stretch_2024_",params$timestep,"_animation_", params$enddate, "_", params$eov,"_", p_extent ,"fps_2.gif"))
 
 
 ## Use CONVERTIO online for mp4 generation
